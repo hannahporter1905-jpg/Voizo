@@ -52,9 +52,6 @@ function NotificationBell({ size = 18 }: { size?: number }) {
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
-        {unreadCount === 0 && notifications.length === 0 && (
-          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-        )}
       </button>
 
       {open && (

@@ -23,7 +23,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   const addNotification = useCallback((message: string) => {
     const now = new Date();
-    const time = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    const time = now.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+      " at " +
+      now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
     setNotifications((prev) => [
       { id: Date.now(), message, time, read: false },
       ...prev,

@@ -308,8 +308,8 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      {/* ── Table ── */}
-      <div className="rounded-xl border border-gray-200 overflow-hidden">
+      {/* ── Table + Pagination ── */}
+      <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
         <CampaignsTable
           campaigns={paginated}
           onDuplicate={handleDuplicateCampaign}
@@ -317,16 +317,18 @@ export default function CampaignsPage() {
           onArchive={handleArchiveCampaign}
           onRecover={handleRecoverCampaign}
         />
+        {totalPages > 1 && (
+          <div className="border-t border-gray-100 px-4 py-3">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={filtered.length}
+              pageSize={PAGE_SIZE}
+              onPageChange={setCurrentPage}
+            />
+          </div>
+        )}
       </div>
-
-      {/* ── Pagination ── */}
-      <Pagination
-        currentPage={safePage}
-        totalPages={totalPages}
-        totalItems={filtered.length}
-        pageSize={PAGE_SIZE}
-        onPageChange={setCurrentPage}
-      />
 
       {showNewModal && (
         <NewCampaignModal
