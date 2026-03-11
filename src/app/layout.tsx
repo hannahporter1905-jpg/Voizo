@@ -23,8 +23,8 @@ export default function RootLayout({
       <body className={`${geistSans.variable} antialiased bg-gray-50`}>
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
-          {/* pt-14 on mobile offsets the fixed top bar */}
-          <main className="flex-1 overflow-y-auto bg-gray-50 pt-14 md:pt-0">
+          {/* pt-14 offsets mobile top bar, pb-16 offsets mobile bottom nav */}
+          <main className="flex-1 overflow-y-auto bg-gray-50 pt-14 pb-16 md:pt-0 md:pb-0">
             {children}
           </main>
         </div>

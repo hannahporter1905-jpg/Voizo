@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,18 +9,16 @@ import {
   PhoneOff,
   BookOpen,
   Phone,
-  Menu,
-  X,
 } from "lucide-react";
 
 const navItems = [
   { label: "Campaigns", href: "/campaigns", icon: Megaphone },
-  { label: "Do Not Call List", href: "/do-not-call", icon: PhoneOff },
-  { label: "Knowledge Bases", href: "/knowledge-bases", icon: BookOpen },
-  { label: "Phone numbers", href: "/phone-numbers", icon: Phone },
+  { label: "Do Not Call", href: "/do-not-call", icon: PhoneOff },
+  { label: "Knowledge", href: "/knowledge-bases", icon: BookOpen },
+  { label: "Phone Nos", href: "/phone-numbers", icon: Phone },
 ];
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
+function SidebarContent() {
   const pathname = usePathname();
 
   return (
@@ -36,21 +33,10 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
             Rooster Partners
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="text-gray-400 hover:text-gray-600 transition-colors relative">
-            <Bell size={18} />
-            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
-          {/* Close button — mobile only */}
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors md:hidden"
-            >
-              <X size={18} />
-            </button>
-          )}
-        </div>
+        <button className="text-gray-400 hover:text-gray-600 transition-colors relative">
+          <Bell size={18} />
+          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+        </button>
       </div>
 
       {/* Global Search */}
@@ -76,17 +62,13 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  onClick={onClose}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive
                       ? "bg-gray-900 text-white"
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
                 >
-                  <Icon
-                    size={16}
-                    className={isActive ? "text-white" : "text-gray-500"}
-                  />
+                  <Icon size={16} className={isActive ? "text-white" : "text-gray-500"} />
                   {item.label}
                 </Link>
               </li>
@@ -94,50 +76,73 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           })}
         </ul>
       </nav>
-
     </div>
   );
 }
 
-export default function Sidebar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
+function MobileTopBar() {
+  const pathname = usePathname();
+  const current = navItems.find(
+    (n) => pathname === n.href || pathname.startsWith(n.href + "/")
+  );
+  const pageTitle = current?.label ?? "Dashboard";
 
   return (
-    <>
-      {/* ── Mobile top bar ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
-            <span className="text-white text-xs font-bold">R</span>
-          </div>
-          <span className="font-semibold text-gray-900 text-sm">Rooster Partners</span>
+    <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+      <div className="flex items-center gap-2">
+        <div className="w-7 h-7 bg-blue-600 rounded-md flex items-center justify-center">
+          <span className="text-white text-xs font-bold">R</span>
         </div>
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          <Menu size={22} />
-        </button>
+        <span className="font-semibold text-gray-900 text-sm">{pageTitle}</span>
       </div>
+      <div className="flex items-center gap-3">
+        <button className="relative text-gray-500 hover:text-gray-700 transition-colors">
+          <Bell size={20} />
+          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+        </button>
+        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+          <span className="text-white text-xs font-bold">RP</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      {/* ── Mobile overlay backdrop ── */}
-      {mobileOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-40 bg-black/40"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+function MobileBottomNav() {
+  const pathname = usePathname();
 
-      {/* ── Mobile slide-in drawer ── */}
-      <aside
-        className={`md:hidden fixed top-0 left-0 z-50 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <SidebarContent onClose={() => setMobileOpen(false)} />
-      </aside>
+  return (
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-200 flex items-center">
+      {navItems.map((item) => {
+        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        const Icon = item.icon;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+              isActive ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <Icon size={20} />
+            <span className="text-[10px] font-medium leading-none">{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
-      {/* ── Desktop sidebar ── */}
+export default function Sidebar() {
+  return (
+    <>
+      {/* Mobile top bar */}
+      <MobileTopBar />
+
+      {/* Mobile bottom nav */}
+      <MobileBottomNav />
+
+      {/* Desktop sidebar */}
       <aside className="hidden md:flex w-60 min-w-[240px] bg-white border-r border-gray-200 flex-col h-screen">
         <SidebarContent />
       </aside>
