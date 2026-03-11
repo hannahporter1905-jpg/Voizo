@@ -16,8 +16,10 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  Trash2,
+  X,
 } from "lucide-react";
-import { initialCampaigns } from "@/lib/campaignData";
+import { initialCampaigns, Campaign } from "@/lib/campaignData";
 import { getContactsByCampaignId, ContactStatus, Contact } from "@/lib/contactData";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -105,10 +107,24 @@ export default function CampaignDetailPage() {
   const params = useParams();
   const id = Number(params.id);
 
+  const baseCampaign = initialCampaigns.find((c) => c.id === id);
+
+  const [campaign, setCampaign] = useState<Campaign | undefined>(baseCampaign);
+  const [contacts, setContacts] = useState<Contact[]>(() => getContactsByCampaignId(id));
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
-  const campaign = initialCampaigns.find((c) => c.id === id);
+  // Edit campaign modal
+  const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState(campaign?.name ?? "");
+
+  // Add contact modal
+  const [showAdd, setShowAdd] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addPhone, setAddPhone] = useState("");
+
+  // Delete contact confirmation
+  const [deleteContactId, setDeleteContactId] = useState<number | null>(null);
 
   if (!campaign) {
     return (
@@ -122,24 +138,22 @@ export default function CampaignDetailPage() {
     );
   }
 
-  const allContacts = getContactsByCampaignId(id);
-
-  // Status counts for progress bar (all contacts)
+  // Status counts for progress bar
   const statusCounts: Partial<Record<ContactStatus, number>> = {};
-  for (const c of allContacts) {
+  for (const c of contacts) {
     statusCounts[c.status] = (statusCounts[c.status] ?? 0) + 1;
   }
-  const totalContacts = allContacts.length || 1;
+  const totalContacts = contacts.length || 1;
   const legendItems = STATUS_ORDER.filter((s) => (statusCounts[s] ?? 0) > 0);
 
   // Filtered by search
-  const filtered = useMemo(() => {
+  const filtered = (() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return allContacts;
-    return allContacts.filter(
+    if (!q) return contacts;
+    return contacts.filter(
       (c) => c.name.toLowerCase().includes(q) || c.phone.toLowerCase().includes(q)
     );
-  }, [allContacts, searchQuery]);
+  })();
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -149,6 +163,36 @@ export default function CampaignDetailPage() {
   function handleSearch(q: string) {
     setSearchQuery(q);
     setCurrentPage(1);
+  }
+
+  function handleSaveEdit() {
+    if (editName.trim()) {
+      setCampaign({ ...campaign, name: editName.trim() });
+    }
+    setShowEdit(false);
+  }
+
+  function handleAddContact() {
+    if (!addName.trim() || !addPhone.trim()) return;
+    const newContact: Contact = {
+      id: Date.now(),
+      campaignId: id,
+      name: addName.trim(),
+      phone: addPhone.trim(),
+      attempts: 0,
+      lastAttempt: "-",
+      callDuration: "-",
+      status: "Unreached",
+    };
+    setContacts((prev) => [newContact, ...prev]);
+    setAddName("");
+    setAddPhone("");
+    setShowAdd(false);
+  }
+
+  function handleDeleteContact(contactId: number) {
+    setContacts((prev) => prev.filter((c) => c.id !== contactId));
+    setDeleteContactId(null);
   }
 
   return (
@@ -177,7 +221,10 @@ export default function CampaignDetailPage() {
         </h1>
         <StatusBadge status={campaign.status} />
         <div className="flex items-center gap-2 shrink-0 ml-auto">
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+          <button
+            onClick={() => { setEditName(campaign.name); setShowEdit(true); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          >
             <Pencil size={13} />
             Edit
           </button>
@@ -185,7 +232,10 @@ export default function CampaignDetailPage() {
             <PhoneCall size={13} />
             Test Call
           </button>
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
             <UserPlus size={13} />
             Add Contact
           </button>
@@ -198,7 +248,7 @@ export default function CampaignDetailPage() {
         <div className="flex-1 bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-sm text-gray-500 font-medium">Total contacts:</span>
-            <span className="text-3xl font-bold text-gray-900">{allContacts.length}</span>
+            <span className="text-3xl font-bold text-gray-900">{contacts.length}</span>
           </div>
           <div className="flex h-3 rounded-full overflow-hidden mb-3 gap-px bg-gray-100">
             {STATUS_ORDER.map((s) => {
@@ -283,7 +333,7 @@ export default function CampaignDetailPage() {
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Last Attempt</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">Call Duration</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Events</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-16"></th>
               </tr>
             </thead>
             <tbody>
@@ -297,7 +347,7 @@ export default function CampaignDetailPage() {
                 paginated.map((contact, index) => (
                   <tr
                     key={contact.id}
-                    className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${
+                    className={`group border-b border-gray-100 hover:bg-gray-50 transition-colors ${
                       index === paginated.length - 1 ? "border-b-0" : ""
                     }`}
                   >
@@ -310,7 +360,13 @@ export default function CampaignDetailPage() {
                     <td className="px-4 py-3 text-right text-gray-700 whitespace-nowrap">{contact.callDuration}</td>
                     <td className="px-4 py-3 text-center"><ContactStatusBadge status={contact.status} /></td>
                     <td className="px-4 py-3 text-center">
-                      <button className="text-xs text-blue-600 hover:underline">View</button>
+                      <button
+                        onClick={() => setDeleteContactId(contact.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"
+                        title="Remove contact"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -355,6 +411,118 @@ export default function CampaignDetailPage() {
           </div>
         )}
       </div>
+
+      {/* ── Edit Campaign Modal ── */}
+      {showEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Edit Campaign</h2>
+              <button onClick={() => setShowEdit(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-md">
+                <X size={16} />
+              </button>
+            </div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Campaign Name</label>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSaveEdit()}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-5"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowEdit(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Contact Modal ── */}
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900">Add Contact</h2>
+              <button onClick={() => setShowAdd(false)} className="p-1 text-gray-400 hover:text-gray-600 rounded-md">
+                <X size={16} />
+              </button>
+            </div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Full Name</label>
+            <input
+              type="text"
+              placeholder="e.g. John Smith"
+              value={addName}
+              onChange={(e) => setAddName(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+              autoFocus
+            />
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Phone Number</label>
+            <input
+              type="text"
+              placeholder="e.g. +1 555 123 4567"
+              value={addPhone}
+              onChange={(e) => setAddPhone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddContact()}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-5"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowAdd(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddContact}
+                disabled={!addName.trim() || !addPhone.trim()}
+                className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-full text-sm font-medium transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Contact Modal ── */}
+      {deleteContactId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">
+              Remove this contact?
+            </h2>
+            <p className="text-sm text-gray-400 mb-6 leading-relaxed">
+              This contact will be permanently removed from the campaign. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteContactId(null)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteContact(deleteContactId)}
+                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-full text-sm font-medium transition-colors"
+              >
+                Yes, Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
