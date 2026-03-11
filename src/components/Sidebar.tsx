@@ -17,7 +17,7 @@ const navItems = [
   { label: "Campaigns", href: "/campaigns", icon: Megaphone },
   { label: "Do Not Call", href: "/do-not-call", icon: PhoneOff },
   { label: "Knowledge", href: "/knowledge-bases", icon: BookOpen },
-  { label: "Phone Nos", href: "/phone-numbers", icon: Phone },
+  { label: "Phone Number", href: "/phone-numbers", icon: Phone },
 ];
 
 function NotificationBell({ size = 18 }: { size?: number }) {

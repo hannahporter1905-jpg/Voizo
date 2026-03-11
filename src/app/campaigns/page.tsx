@@ -40,7 +40,7 @@ import CampaignsTable from "@/components/CampaignsTable";
 import NewCampaignModal from "@/components/NewCampaignModal";
 import AddGroupModal from "@/components/AddGroupModal";
 import Pagination from "@/components/Pagination";
-import { fetchCampaigns, insertCampaign, deleteCampaign, archiveCampaign, Campaign, Group } from "@/lib/campaignData";
+import { fetchCampaigns, insertCampaign, deleteCampaign, archiveCampaign, recoverCampaign, Campaign, Group } from "@/lib/campaignData";
 import { fetchAllContacts, Contact } from "@/lib/contactData";
 
 const BUILTIN_GROUPS: Group[] = ["Canada", "RND", "Reactivation", "Archived"];
@@ -177,6 +177,12 @@ export default function CampaignsPage() {
     setActiveTab("Archived");
   }
 
+  async function handleRecoverCampaign(id: number) {
+    setCampaigns((prev) => prev.map((c) => c.id === id ? { ...c, group: "RND" } : c));
+    try { await recoverCampaign(id); } catch { /* already updated in UI */ }
+    setActiveTab("RND");
+  }
+
   const tabs = [{ label: "All", group: "All" }, ...allGroups.map((g) => ({ label: g, group: g }))];
 
   if (loading) {
@@ -309,6 +315,7 @@ export default function CampaignsPage() {
           onDuplicate={handleDuplicateCampaign}
           onDelete={handleDeleteCampaign}
           onArchive={handleArchiveCampaign}
+          onRecover={handleRecoverCampaign}
         />
       </div>
 

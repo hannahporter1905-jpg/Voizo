@@ -74,6 +74,11 @@ export async function archiveCampaign(id: number): Promise<void> {
   if (error) throw error;
 }
 
+export async function recoverCampaign(id: number): Promise<void> {
+  const { error } = await supabase.from("campaigns").update({ group_name: "RND" }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateCampaignName(id: number, name: string): Promise<void> {
   const { error } = await supabase.from("campaigns").update({ name }).eq("id", id);
   if (error) throw error;
