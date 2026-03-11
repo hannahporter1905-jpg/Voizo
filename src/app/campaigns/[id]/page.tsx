@@ -162,6 +162,13 @@ export default function CampaignDetailPage() {
   const totalContacts = contacts.length || 1;
   const legendItems = STATUS_ORDER.filter((s) => (statusCounts[s] ?? 0) > 0);
 
+  // Computed stats from contacts
+  const computedTotalCalls = contacts.reduce((sum, c) => sum + c.attempts, 0);
+  const computedConnectCount = contacts.filter((c) => c.status !== "Unreached").length;
+  const computedSuccessCount = contacts.filter((c) => c.status === "Interested" || c.status === "Sent SMS").length;
+  const computedConnectRate = contacts.length > 0 ? ((computedConnectCount / contacts.length) * 100).toFixed(2) + "%" : "0%";
+  const computedSuccessRate = computedConnectCount > 0 ? ((computedSuccessCount / computedConnectCount) * 100).toFixed(2) + "%" : "0%";
+
   // Filtered by search
   const filtered = (() => {
     const q = searchQuery.trim().toLowerCase();
@@ -300,21 +307,21 @@ export default function CampaignDetailPage() {
         {/* Stats card */}
         <div className="w-full sm:w-56 bg-white rounded-xl border border-gray-200 p-4 shrink-0">
           <p className="text-sm font-semibold text-gray-700 mb-3">
-            Total Calls: <span className="text-gray-900">{campaign.totalCalls.toLocaleString()}</span>
+            Total Calls: <span className="text-gray-900">{computedTotalCalls.toLocaleString()}</span>
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-xs text-gray-500 mb-1">Connect Rate</p>
-              <p className="text-lg font-bold text-gray-900">{campaign.connectRate}</p>
+              <p className="text-lg font-bold text-gray-900">{computedConnectRate}</p>
               <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
-                <Users size={11} /><span>{campaign.connectCount}</span>
+                <Users size={11} /><span>{computedConnectCount}</span>
               </div>
             </div>
             <div>
               <p className="text-xs text-gray-500 mb-1">Success Rate</p>
-              <p className="text-lg font-bold text-gray-900">{campaign.successRate}</p>
+              <p className="text-lg font-bold text-gray-900">{computedSuccessRate}</p>
               <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
-                <Users size={11} /><span>{campaign.successCount}</span>
+                <Users size={11} /><span>{computedSuccessCount}</span>
               </div>
             </div>
           </div>
