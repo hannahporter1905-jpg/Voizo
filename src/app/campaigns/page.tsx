@@ -93,46 +93,36 @@ export default function CampaignsPage() {
   }, [campaigns, allGroups]);
 
   const stats = useMemo(() => {
-    const filteredIds = new Set(filtered.map((c) => c.id));
-    const visibleContacts = allContacts.filter((c) => filteredIds.has(c.campaignId));
-    const totalContacts = visibleContacts.length;
-    const totalCalls = visibleContacts.reduce((s, c) => s + c.attempts, 0);
-    const totalConnect = visibleContacts.filter((c) => c.status !== "Unreached").length;
-    const totalSuccess = visibleContacts.filter((c) => c.status === "Interested" || c.status === "Sent SMS").length;
-    const connectRate = totalContacts > 0 ? ((totalConnect / totalContacts) * 100).toFixed(1) : "0";
+    const totalContacts = filtered.reduce((s, c) => s + c.totalContacts, 0);
+    const totalCalls = filtered.reduce((s, c) => s + c.totalCalls, 0);
+    const totalConnect = filtered.reduce((s, c) => s + c.connectCount, 0);
+    const totalSuccess = filtered.reduce((s, c) => s + c.successCount, 0);
+    const connectRate = totalCalls > 0 ? ((totalConnect / totalCalls) * 100).toFixed(1) : "0";
     const successRate = totalConnect > 0 ? ((totalSuccess / totalConnect) * 100).toFixed(1) : "0";
     return { totalContacts, totalCalls, connectRate, successRate };
-  }, [filtered, allContacts]);
+  }, [filtered]);
 
-  // Sparkline data derived from actual contacts per campaign (last 7 campaigns)
+  // Sparkline data derived from campaigns (last 7 data points)
   const sparkContacts = useMemo(() => {
-    const pts = filtered.slice(-7).map((c) => allContacts.filter((ct) => ct.campaignId === c.id).length);
+    const pts = filtered.slice(-7).map((c) => c.totalContacts);
     const total = pts.reduce((s, v) => s + v, 0) || 1;
     return pts.map((v, i) => ({ i, v, date: DAY_LABELS[i], pct: Math.round((v / total) * 100) }));
-  }, [filtered, allContacts]);
+  }, [filtered]);
   const sparkCalls = useMemo(() => {
-    const pts = filtered.slice(-7).map((c) => allContacts.filter((ct) => ct.campaignId === c.id).reduce((s, ct) => s + ct.attempts, 0));
+    const pts = filtered.slice(-7).map((c) => c.totalCalls);
     const total = pts.reduce((s, v) => s + v, 0) || 1;
     return pts.map((v, i) => ({ i, v, date: DAY_LABELS[i], pct: Math.round((v / total) * 100) }));
-  }, [filtered, allContacts]);
+  }, [filtered]);
   const sparkConnect = useMemo(() => {
-    const pts = filtered.slice(-7).map((c) => {
-      const cts = allContacts.filter((ct) => ct.campaignId === c.id);
-      return cts.length > 0 ? Math.round((cts.filter((ct) => ct.status !== "Unreached").length / cts.length) * 100) : 0;
-    });
+    const pts = filtered.slice(-7).map((c) => c.totalCalls > 0 ? Math.round((c.connectCount / c.totalCalls) * 100) : 0);
     const total = pts.reduce((s, v) => s + v, 0) || 1;
     return pts.map((v, i) => ({ i, v, date: DAY_LABELS[i], pct: Math.round((v / total) * 100) }));
-  }, [filtered, allContacts]);
+  }, [filtered]);
   const sparkSuccess = useMemo(() => {
-    const pts = filtered.slice(-7).map((c) => {
-      const cts = allContacts.filter((ct) => ct.campaignId === c.id);
-      const connected = cts.filter((ct) => ct.status !== "Unreached").length;
-      const success = cts.filter((ct) => ct.status === "Interested" || ct.status === "Sent SMS").length;
-      return connected > 0 ? Math.round((success / connected) * 100) : 0;
-    });
+    const pts = filtered.slice(-7).map((c) => c.connectCount > 0 ? Math.round((c.successCount / c.connectCount) * 100) : 0);
     const total = pts.reduce((s, v) => s + v, 0) || 1;
     return pts.map((v, i) => ({ i, v, date: DAY_LABELS[i], pct: Math.round((v / total) * 100) }));
-  }, [filtered, allContacts]);
+  }, [filtered]);
 
   function handleTabChange(tab: string) { setActiveTab(tab); setCurrentPage(1); }
   function handleSearch(q: string) { setSearchQuery(q); setCurrentPage(1); }
@@ -277,7 +267,7 @@ export default function CampaignsPage() {
           title="Total Contacts"
           value={stats.totalContacts.toLocaleString()}
           change={+13}
-          label="vs previous 7 days"
+          label="this month"
           chart={<BarChart data={sparkContacts}><XAxis dataKey="i" hide /><Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(99,102,241,0.08)" }} /><Bar dataKey="v" fill="#6366f1" radius={[3,3,0,0]} /></BarChart>}
         />
         {/* Total Calls */}
@@ -285,7 +275,7 @@ export default function CampaignsPage() {
           title="Total Calls"
           value={stats.totalCalls.toLocaleString()}
           change={+8}
-          label="vs previous 7 days"
+          label="this month"
           chart={<BarChart data={sparkCalls}><XAxis dataKey="i" hide /><Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(139,92,246,0.08)" }} /><Bar dataKey="v" fill="#8b5cf6" radius={[3,3,0,0]} /></BarChart>}
         />
         {/* Connect Rate */}
@@ -293,7 +283,7 @@ export default function CampaignsPage() {
           title="Connect Rate"
           value={stats.connectRate + "%"}
           change={+5}
-          label="vs previous 7 days"
+          label="this month"
           chart={<AreaChart data={sparkConnect}><XAxis dataKey="i" hide /><Tooltip content={<ChartTooltip />} /><defs><linearGradient id="cgGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22c55e" stopOpacity={0.25}/><stop offset="95%" stopColor="#22c55e" stopOpacity={0}/></linearGradient></defs><Area type="monotone" dataKey="v" stroke="#22c55e" strokeWidth={2} fill="url(#cgGrad)" dot={false} /></AreaChart>}
         />
         {/* Success Rate */}
@@ -301,7 +291,7 @@ export default function CampaignsPage() {
           title="Success Rate"
           value={stats.successRate + "%"}
           change={-2}
-          label="vs previous 7 days"
+          label="this month"
           chart={<AreaChart data={sparkSuccess}><XAxis dataKey="i" hide /><Tooltip content={<ChartTooltip />} /><defs><linearGradient id="srGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.25}/><stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/></linearGradient></defs><Area type="monotone" dataKey="v" stroke="#f59e0b" strokeWidth={2} fill="url(#srGrad)" dot={false} /></AreaChart>}
         />
       </div>
