@@ -130,7 +130,7 @@ export default function CampaignsPage() {
   const tabs = [{ label: "All", group: "All" }, ...allGroups.map((g) => ({ label: g, group: g }))];
 
   return (
-    <div className="p-4 sm:p-6 max-w-[1500px]">
+    <div className="p-4 sm:p-6 w-full">
 
       {/* ── Page header ── */}
       <div className="flex items-center justify-between mb-5">
