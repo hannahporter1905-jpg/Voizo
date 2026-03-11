@@ -67,6 +67,15 @@ export async function deleteContact(id: number): Promise<void> {
   if (error) throw error;
 }
 
+export async function fetchAllContacts(): Promise<Contact[]> {
+  const { data, error } = await supabase
+    .from("contacts")
+    .select("*")
+    .order("id", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map(rowToContact);
+}
+
 // Kept for legacy sync usage — returns empty
 export function getContactsByCampaignId(_id: number): Contact[] {
   return [];

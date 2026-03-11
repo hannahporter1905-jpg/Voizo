@@ -41,6 +41,7 @@ import NewCampaignModal from "@/components/NewCampaignModal";
 import AddGroupModal from "@/components/AddGroupModal";
 import Pagination from "@/components/Pagination";
 import { fetchCampaigns, insertCampaign, deleteCampaign, Campaign, Group } from "@/lib/campaignData";
+import { fetchAllContacts, Contact } from "@/lib/contactData";
 
 const BUILTIN_GROUPS: Group[] = ["Canada", "RND", "Reactivation", "Archived"];
 const PAGE_SIZE = 5;
@@ -48,11 +49,15 @@ const PAGE_SIZE = 5;
 export default function CampaignsPage() {
   const { addNotification } = useNotifications();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [allContacts, setAllContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchCampaigns()
-      .then(setCampaigns)
+    Promise.all([fetchCampaigns(), fetchAllContacts()])
+      .then(([camps, contacts]) => {
+        setCampaigns(camps);
+        setAllContacts(contacts);
+      })
       .finally(() => setLoading(false));
   }, []);
   const [customGroups, setCustomGroups] = useState<Group[]>([]);
@@ -88,36 +93,46 @@ export default function CampaignsPage() {
   }, [campaigns, allGroups]);
 
   const stats = useMemo(() => {
-    const totalContacts = filtered.reduce((s, c) => s + c.totalContacts, 0);
-    const totalCalls = filtered.reduce((s, c) => s + c.totalCalls, 0);
-    const totalConnect = filtered.reduce((s, c) => s + c.connectCount, 0);
-    const totalSuccess = filtered.reduce((s, c) => s + c.successCount, 0);
-    const connectRate = totalCalls > 0 ? ((totalConnect / totalCalls) * 100).toFixed(1) : "0";
+    const filteredIds = new Set(filtered.map((c) => c.id));
+    const visibleContacts = allContacts.filter((c) => filteredIds.has(c.campaignId));
+    const totalContacts = visibleContacts.length;
+    const totalCalls = visibleContacts.reduce((s, c) => s + c.attempts, 0);
+    const totalConnect = visibleContacts.filter((c) => c.status !== "Unreached").length;
+    const totalSuccess = visibleContacts.filter((c) => c.status === "Interested" || c.status === "Sent SMS").length;
+    const connectRate = totalContacts > 0 ? ((totalConnect / totalContacts) * 100).toFixed(1) : "0";
     const successRate = totalConnect > 0 ? ((totalSuccess / totalConnect) * 100).toFixed(1) : "0";
     return { totalContacts, totalCalls, connectRate, successRate };
-  }, [filtered]);
+  }, [filtered, allContacts]);
 
-  // Sparkline data derived from campaigns (last 7 data points)
+  // Sparkline data derived from actual contacts per campaign (last 7 campaigns)
   const sparkContacts = useMemo(() => {
-    const pts = filtered.slice(-7).map((c) => c.totalContacts);
+    const pts = filtered.slice(-7).map((c) => allContacts.filter((ct) => ct.campaignId === c.id).length);
     const total = pts.reduce((s, v) => s + v, 0) || 1;
     return pts.map((v, i) => ({ i, v, date: DAY_LABELS[i], pct: Math.round((v / total) * 100) }));
-  }, [filtered]);
+  }, [filtered, allContacts]);
   const sparkCalls = useMemo(() => {
-    const pts = filtered.slice(-7).map((c) => c.totalCalls);
+    const pts = filtered.slice(-7).map((c) => allContacts.filter((ct) => ct.campaignId === c.id).reduce((s, ct) => s + ct.attempts, 0));
     const total = pts.reduce((s, v) => s + v, 0) || 1;
     return pts.map((v, i) => ({ i, v, date: DAY_LABELS[i], pct: Math.round((v / total) * 100) }));
-  }, [filtered]);
+  }, [filtered, allContacts]);
   const sparkConnect = useMemo(() => {
-    const pts = filtered.slice(-7).map((c) => c.totalCalls > 0 ? Math.round((c.connectCount / c.totalCalls) * 100) : 0);
+    const pts = filtered.slice(-7).map((c) => {
+      const cts = allContacts.filter((ct) => ct.campaignId === c.id);
+      return cts.length > 0 ? Math.round((cts.filter((ct) => ct.status !== "Unreached").length / cts.length) * 100) : 0;
+    });
     const total = pts.reduce((s, v) => s + v, 0) || 1;
     return pts.map((v, i) => ({ i, v, date: DAY_LABELS[i], pct: Math.round((v / total) * 100) }));
-  }, [filtered]);
+  }, [filtered, allContacts]);
   const sparkSuccess = useMemo(() => {
-    const pts = filtered.slice(-7).map((c) => c.connectCount > 0 ? Math.round((c.successCount / c.connectCount) * 100) : 0);
+    const pts = filtered.slice(-7).map((c) => {
+      const cts = allContacts.filter((ct) => ct.campaignId === c.id);
+      const connected = cts.filter((ct) => ct.status !== "Unreached").length;
+      const success = cts.filter((ct) => ct.status === "Interested" || ct.status === "Sent SMS").length;
+      return connected > 0 ? Math.round((success / connected) * 100) : 0;
+    });
     const total = pts.reduce((s, v) => s + v, 0) || 1;
     return pts.map((v, i) => ({ i, v, date: DAY_LABELS[i], pct: Math.round((v / total) * 100) }));
-  }, [filtered]);
+  }, [filtered, allContacts]);
 
   function handleTabChange(tab: string) { setActiveTab(tab); setCurrentPage(1); }
   function handleSearch(q: string) { setSearchQuery(q); setCurrentPage(1); }
