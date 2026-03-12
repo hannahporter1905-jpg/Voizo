@@ -22,8 +22,6 @@ export default function DoNotCallPage() {
     try {
       const data = await fetchDncEntries();
       setEntries(data);
-    } catch {
-      setError("Failed to load DNC list. Please try again.");
     } finally {
       setLoading(false);
     }
