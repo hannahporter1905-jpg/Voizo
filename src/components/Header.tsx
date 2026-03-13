@@ -130,7 +130,7 @@ export default function Header() {
 
         {/* User avatar */}
         <div className="ml-1 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center cursor-pointer">
-          <span className="text-white text-[10px] font-bold">RP</span>
+          <span className="text-white text-[10px] font-bold">V</span>
         </div>
       </div>
     </header>

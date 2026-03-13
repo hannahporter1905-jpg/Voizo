@@ -274,9 +274,9 @@ function SidebarContent() {
       <div className="flex items-center px-4 h-[57px] border-b border-[var(--border)]">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-            <span className="text-white text-xs font-bold">R</span>
+            <span className="text-white text-xs font-bold">V</span>
           </div>
-          <span className="font-semibold text-[var(--text-1)] text-sm">Rooster Partners</span>
+          <span className="font-bold text-[var(--text-1)] text-sm">VOIZO</span>
         </div>
       </div>
 
@@ -323,7 +323,7 @@ function MobileTopBar() {
     <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-[var(--bg-sidebar)] border-b border-[var(--border)]">
       <div className="flex items-center gap-2">
         <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center">
-          <span className="text-white text-xs font-bold">R</span>
+          <span className="text-white text-xs font-bold">V</span>
         </div>
         <span className="font-semibold text-[var(--text-1)] text-sm">{pageTitle}</span>
       </div>
@@ -333,7 +333,7 @@ function MobileTopBar() {
         </button>
         <NotificationBell size={20} />
         <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center">
-          <span className="text-white text-[10px] font-bold">RP</span>
+          <span className="text-white text-[10px] font-bold">V</span>
         </div>
       </div>
     </div>

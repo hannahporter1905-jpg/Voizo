@@ -11,8 +11,9 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Rooster Partners - Caller System Dashboard",
-  description: "Caller system dashboard for Rooster Partners",
+  title: "VOIZO - Caller System Dashboard",
+  description: "Caller system dashboard for VOIZO",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({
