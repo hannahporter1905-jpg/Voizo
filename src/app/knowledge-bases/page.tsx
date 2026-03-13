@@ -44,8 +44,10 @@ export default function KnowledgeBasesPage() {
       const msg = `Knowledge base "${name}" created successfully!`;
       showToast(msg);
       addNotification(msg);
-    } catch {
-      showToast("Failed to create knowledge base.", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(msg || "Failed to create knowledge base.", "error");
+      console.error("insertKnowledgeBase error:", err);
     } finally {
       setSaving(false);
     }
