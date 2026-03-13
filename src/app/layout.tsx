@@ -11,7 +11,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "VOIZO - Caller System Dashboard",
+  title: "VOIZO",
   description: "Caller system dashboard for VOIZO",
   icons: { icon: "/favicon.svg" },
 };
