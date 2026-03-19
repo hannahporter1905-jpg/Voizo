@@ -8,6 +8,8 @@ import {
   useEdgesState,
   Background,
   BackgroundVariant,
+  Handle,
+  Position,
   type Node,
   type Edge,
 } from "@xyflow/react";
@@ -77,6 +79,27 @@ const initialEdges: Edge[] = [
   { id: "e-start-intro", source: "start", target: "intro", style: { stroke: "#D1D5DB", strokeWidth: 1.5 } },
 ];
 
+// ── Workflow flow data ─────────────────────────────────────────────────────
+
+interface WfNodeData extends Record<string, unknown> {
+  title?: string; icon?: string; description?: string; actionLabel?: string;
+}
+
+const initialWorkflowNodes: Node<WfNodeData>[] = [
+  { id: "wf-triggers",  type: "wfSimpleNode",  position: { x: 0,    y: 0 }, data: { title: "Triggers",        icon: "bolt",  description: "Select events that add or archive contacts.",      actionLabel: "Add" } },
+  { id: "wf-precall",   type: "wfSimpleNode",  position: { x: 280,  y: 0 }, data: { title: "Pre-Call Actions",icon: "share", description: "Run actions before the call is dialed.",          actionLabel: "Add" } },
+  { id: "wf-center",    type: "wfCenterNode",  position: { x: 560,  y: 0 }, data: {} },
+  { id: "wf-success",   type: "wfSimpleNode",  position: { x: 890,  y: 0 }, data: { title: "Success Criteria",icon: "thumb", description: "Define the possible outcomes of a conversation.", actionLabel: "Generate" } },
+  { id: "wf-postcall",  type: "wfSimpleNode",  position: { x: 1170, y: 0 }, data: { title: "Post-Call Actions",icon: "share", description: "Execute actions based on call outcomes.",        actionLabel: "Add" } },
+];
+
+const initialWorkflowEdges: Edge[] = [
+  { id: "wf-e1", source: "wf-triggers", target: "wf-precall",  type: "straight", style: { stroke: "#D1D5DB", strokeWidth: 2, strokeDasharray: "6 4" } },
+  { id: "wf-e2", source: "wf-precall",  target: "wf-center",   type: "straight", style: { stroke: "#D1D5DB", strokeWidth: 2, strokeDasharray: "6 4" } },
+  { id: "wf-e3", source: "wf-center",   target: "wf-success",  type: "straight", style: { stroke: "#D1D5DB", strokeWidth: 2, strokeDasharray: "6 4" } },
+  { id: "wf-e4", source: "wf-success",  target: "wf-postcall", type: "straight", style: { stroke: "#D1D5DB", strokeWidth: 2, strokeDasharray: "6 4" } },
+];
+
 // ── Custom nodes ──────────────────────────────────────────────────────────
 
 function StartNode() {
@@ -102,7 +125,81 @@ function ScriptNode({ data }: { data: ScriptNodeData }) {
   );
 }
 
-const nodeTypes = { startNode: StartNode, scriptNode: ScriptNode };
+const nodeTypes = { startNode: StartNode, scriptNode: ScriptNode, wfSimpleNode: WfSimpleNode, wfCenterNode: WfCenterNode };
+
+// ── Workflow node components ───────────────────────────────────────────────
+
+function WfSimpleNode({ data }: { data: WfNodeData }) {
+  const iconEl = data.icon === "bolt" ? (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-amber-500 shrink-0"><path d="M13 2L4.093 12.688H12L11 22L19.907 11.312H12L13 2Z" fill="currentColor"/></svg>
+  ) : data.icon === "thumb" ? (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-blue-500 shrink-0"><path d="M2 20h2a1 1 0 001-1V9a1 1 0 00-1-1H2v12zm16.5-12H13V6c0-1.66-1.34-3-3-3h-1v2c0 .55.45 1 1 1h.5C11.33 6 12 6.67 12 7.5V8h-2.5c-.83 0-1.5.67-1.5 1.5v9c0 .83.67 1.5 1.5 1.5h8a1.5 1.5 0 001.5-1.5v-9A1.5 1.5 0 0018.5 8z" fill="currentColor"/></svg>
+  ) : (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-purple-500 shrink-0"><path fillRule="evenodd" clipRule="evenodd" d="M21.5 4.5C21.5 5.605 20.605 6.5 19.5 6.5C18.395 6.5 17.5 5.605 17.5 4.5C17.5 3.395 18.395 2.5 19.5 2.5C20.605 2.5 21.5 3.395 21.5 4.5ZM4.5 15.5C6.433 15.5 8 13.933 8 12C8 10.067 6.433 8.5 4.5 8.5C2.567 8.5 1 10.067 1 12C1 13.933 2.567 15.5 4.5 15.5ZM19.5 21.5C20.605 21.5 21.5 20.605 21.5 19.5C21.5 18.395 20.605 17.5 19.5 17.5C18.395 17.5 17.5 18.395 17.5 19.5C17.5 20.605 18.395 21.5 19.5 21.5Z" fill="currentColor"/></svg>
+  );
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 w-[220px]">
+      <Handle type="target" position={Position.Left}  style={{ opacity: 0, pointerEvents: "none" }} />
+      <Handle type="source" position={Position.Right} style={{ opacity: 0, pointerEvents: "none" }} />
+      <div className="flex items-center gap-2 mb-2">{iconEl}<span className="text-sm font-semibold text-gray-800">{data.title as string}</span></div>
+      <p className="text-xs text-gray-500 mb-4 leading-relaxed">{data.description as string}</p>
+      <button className="w-full border border-gray-200 rounded-xl py-2 text-sm text-gray-600 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors nodrag">
+        {data.actionLabel === "Generate" ? (<><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 3L10.5 9H15L11 12L12.5 18L9 15L5.5 18L7 12L3 9H7.5L9 3Z" fill="currentColor"/></svg>Generate</>) : (<><span className="text-gray-400">+</span> Add</>)}
+      </button>
+    </div>
+  );
+}
+
+function WfCenterNode({ data: _ }: { data: WfNodeData }) {
+  return (
+    <div className="flex flex-col gap-3 w-[260px]">
+      <Handle type="target" position={Position.Left}  style={{ opacity: 0, pointerEvents: "none", top: 60 }} />
+      <Handle type="source" position={Position.Right} style={{ opacity: 0, pointerEvents: "none", top: 60 }} />
+      {/* Script card */}
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+        <div className="flex items-center gap-1 p-3 border-b border-gray-100">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-semibold text-gray-800 nodrag">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M19.5 9C21.433 9 23 7.433 23 5.5C23 3.567 21.433 2 19.5 2C17.567 2 16 3.567 16 5.5C16 7.433 17.567 9 19.5 9ZM19.5 7.5C20.605 7.5 21.5 6.605 21.5 5.5C21.5 4.395 20.605 3.5 19.5 3.5C18.395 3.5 17.5 4.395 17.5 5.5C17.5 6.605 18.395 7.5 19.5 7.5Z" fill="currentColor"/></svg>
+            Script
+          </button>
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-gray-500 hover:bg-gray-50 nodrag">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M1.08 5.285C1.444 3.049 2.804 1.539 4.848 1.103C6.043 0.849 7.069 1.066 7.846 1.74C8.174 2.024 9.496 3.596 9.788 4.05C10.27 4.797 10.463 5.858 10.282 6.756C10.127 7.523 9.899 7.931 8.823 9.373C8.28 10.1 7.837 10.736 7.837 10.785C7.838 10.912 8.349 11.96 8.611 12.374C9.008 12.999 9.54 13.64 10.129 14.202C10.682 14.729 11.578 15.4 11.728 15.4C11.767 15.4 12.478 15.053 13.308 14.629C14.97 13.781 15.294 13.671 16.128 13.671C17.095 13.671 18.003 14.035 18.701 14.703C19.283 15.261 20.456 16.701 20.655 17.102C21.159 18.119 21.112 19.152 20.506 20.388C19.906 21.609 18.84 22.483 17.519 22.836C16.933 22.993 15.763 23.048 15.048 22.954C12.85 22.663 10.427 21.485 8.066 19.561C7.174 18.834 5.481 17.103 4.866 16.289C2.747 13.485 1.383 10.444 1.057 7.793C0.972 7.097 0.984 5.891 1.08 5.285Z" fill="currentColor"/></svg>
+            Voice Call
+          </button>
+        </div>
+        <div className="p-3 space-y-1.5 bg-gray-50">
+          <div className="flex gap-2 items-center"><div className="w-8 h-1.5 bg-gray-300 rounded-full"/><div className="w-16 h-1.5 bg-gray-200 rounded-full"/><div className="w-10 h-1.5 bg-[#BBF7D0] rounded-full"/></div>
+          <div className="flex gap-2 items-center"><div className="w-12 h-1.5 bg-gray-200 rounded-full"/><div className="w-20 h-1.5 bg-gray-200 rounded-full"/></div>
+          <div className="flex gap-2 items-center"><div className="w-6 h-1.5 bg-[#FDE68A] rounded-full"/><div className="w-14 h-1.5 bg-gray-200 rounded-full"/><div className="w-8 h-1.5 bg-gray-300 rounded-full"/></div>
+          <div className="flex gap-2 items-center"><div className="w-16 h-1.5 bg-gray-200 rounded-full"/><div className="w-10 h-1.5 bg-gray-200 rounded-full"/></div>
+        </div>
+      </div>
+      {/* Schedule */}
+      <div className="bg-white rounded-2xl border border-gray-200 px-4 py-3 shadow-sm space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-gray-500"><path fillRule="evenodd" clipRule="evenodd" d="M7.212 2.526C7.212 2.098 6.864 1.75 6.435 1.75C6.006 1.75 5.659 2.098 5.659 2.526V3.821H3.847C2.275 3.821 1 5.095 1 6.668V17.538C1 19.111 2.275 20.385 3.847 20.385H8.506C8.935 20.385 9.282 20.038 9.282 19.609C9.282 19.18 8.935 18.833 8.506 18.833H3.847C3.132 18.833 2.553 18.253 2.553 17.538V6.668C2.553 5.953 3.132 5.374 3.847 5.374H5.659V6.668C5.659 7.096 6.006 7.444 6.435 7.444C6.864 7.444 7.212 7.096 7.212 6.668V2.526Z" fill="currentColor"/></svg>
+            <span className="text-sm font-medium text-gray-800">Mon-Fri</span>
+          </div>
+          <span className="text-sm text-gray-500">9am - 5pm</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-gray-500"><path fillRule="evenodd" clipRule="evenodd" d="M12 2.25C6.615 2.25 2.25 6.615 2.25 12C2.25 17.385 6.615 21.75 12 21.75C17.385 21.75 21.75 17.385 21.75 12C21.75 6.615 17.385 2.25 12 2.25ZM12 3.75C16.556 3.75 20.25 7.444 20.25 12C20.25 16.556 16.556 20.25 12 20.25C7.444 20.25 3.75 16.556 3.75 12C3.75 7.444 7.444 3.75 12 3.75ZM12.75 7.5C12.75 7.086 12.414 6.75 12 6.75C11.586 6.75 11.25 7.086 11.25 7.5V12C11.25 12.199 11.329 12.39 11.47 12.53L14.47 15.53C14.763 15.823 15.237 15.823 15.53 15.53C15.823 15.237 15.823 14.763 15.53 14.47L12.75 11.689V7.5Z" fill="currentColor"/></svg>
+          <span className="text-xs text-gray-500">Every 1.5 hours, total 3 attempts</span>
+        </div>
+      </div>
+      {/* Summary */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-2">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="text-gray-600"><path fillRule="evenodd" clipRule="evenodd" d="M16.154 3.004C17.739 3.084 19 4.395 19 6V18C19 19.657 17.657 21 16 21H8C6.343 21 5 19.657 5 18V6C5 4.343 6.343 3 8 3H16L16.154 3.004ZM8 4.5C7.172 4.5 6.5 5.172 6.5 6V18C6.5 18.828 7.172 19.5 8 19.5H16C16.828 19.5 17.5 18.828 17.5 18V6C17.5 5.172 16.828 4.5 16 4.5H8Z" fill="currentColor"/></svg>
+          <span className="text-sm font-semibold text-gray-800">Summary</span>
+        </div>
+        <p className="text-xs text-gray-500 mb-3">Collect key information from the conversation with the contact.</p>
+        <button className="w-full border border-gray-200 rounded-xl py-2 text-sm text-gray-600 flex items-center justify-center gap-2 hover:bg-gray-50 nodrag"><span className="text-gray-400">+</span> Add</button>
+      </div>
+    </div>
+  );
+}
 
 // ── Step label config ──────────────────────────────────────────────────────
 
@@ -134,8 +231,15 @@ function CampaignEditorInner({ onClose, onSave, nextId, availableGroups }: Props
   const [activeScenarioStep, setActiveScenarioStep] = useState<number | null>(null);
   const nextScenarioId = useRef(2);
   const nextScenarioStepId = useRef(2);
+  const [generalSettingsOpen, setGeneralSettingsOpen] = useState(false);
+  const [useCase, setUseCase] = useState("Not specific");
+  const [useCaseOpen, setUseCaseOpen] = useState(false);
+  const [callType, setCallType] = useState<"outgoing" | "incoming">("outgoing");
+  const [campaignInstructions, setCampaignInstructions] = useState("");
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<ScriptNodeData>>(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+  const [wfNodes, , onWfNodesChange] = useNodesState<Node<WfNodeData>>(initialWorkflowNodes);
+  const [wfEdges, , onWfEdgesChange] = useEdgesState(initialWorkflowEdges);
 
   const openScriptPanel = useCallback(() => {
     setScriptPanelOpen(true);
@@ -232,7 +336,7 @@ function CampaignEditorInner({ onClose, onSave, nextId, availableGroups }: Props
             <div className="w-8 min-w-8 h-8 rounded-[10px] bg-[#4F46E5] flex items-center justify-center shrink-0">
                 <span className="text-white font-bold text-base leading-none">V</span>
               </div>
-            <div className="flex items-center gap-2 rounded-full bg-white px-[14px] py-[11px] text-[#181B19] cursor-pointer hover:bg-[#0000000A] grow overflow-hidden" onClick={() => setEditingName(true)}>
+            <div className="flex items-center gap-2 rounded-full bg-white px-[14px] py-[11px] text-[#181B19] cursor-pointer hover:bg-[#0000000A] grow overflow-hidden" onClick={() => setGeneralSettingsOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0"><path fillRule="evenodd" clipRule="evenodd" d="M8.61 6C8.61 5.586 8.946 5.25 9.36 5.25H18C18.414 5.25 18.75 5.586 18.75 6V14.64C18.75 15.054 18.414 15.39 18 15.39C17.586 15.39 17.25 15.054 17.25 14.64V7.811L6.53 18.53C6.237 18.823 5.763 18.823 5.47 18.53C5.177 18.237 5.177 17.763 5.47 17.47L16.189 6.75H9.36C8.946 6.75 8.61 6.414 8.61 6Z" fill="currentColor" /></svg>
               {editingName ? (
                 <input autoFocus value={campaignName} onChange={(e) => setCampaignName(e.target.value)} onBlur={() => setEditingName(false)} onKeyDown={(e) => { if (e.key === "Enter") setEditingName(false); }} className="text-base font-semibold bg-transparent outline-none border-b border-gray-400 min-w-[120px] max-w-[200px]" onClick={(e) => e.stopPropagation()} />
@@ -494,11 +598,104 @@ function CampaignEditorInner({ onClose, onSave, nextId, availableGroups }: Props
 
         {/* ── Workflow tab ── */}
         {activeTab === "Workflow" && (
-          <div className="flex-1 flex items-center justify-center" style={{ background: "#F5F5F5" }}>
-            <p className="text-sm text-gray-400">Workflow coming soon</p>
+          <div className="flex-1 relative" style={{ background: "#F5F5F5" }}>
+            <ReactFlow
+              nodes={wfNodes}
+              edges={wfEdges}
+              onNodesChange={onWfNodesChange}
+              onEdgesChange={onWfEdgesChange}
+              nodeTypes={nodeTypes}
+              fitView fitViewOptions={{ padding: 0.3 }}
+              minZoom={0.25} maxZoom={2}
+              panOnScroll zoomOnScroll
+              nodesDraggable nodesConnectable={false} elementsSelectable={false}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color="#D1D5DB" />
+            </ReactFlow>
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center bg-white rounded-full border border-gray-200 shadow-sm gap-1 px-1 py-1 z-10">
+              <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700 text-lg font-medium">+</button>
+              <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700 text-lg font-medium">−</button>
+              <span className="text-sm text-gray-600 px-2 min-w-[48px] text-center">75%</span>
+            </div>
           </div>
         )}
       </div>
+
+      {/* ── General Settings Modal ── */}
+      {generalSettingsOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => { setGeneralSettingsOpen(false); setUseCaseOpen(false); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }} onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="text-gray-700"><path fillRule="evenodd" clipRule="evenodd" d="M11.13 1.037C10.637 1.108 10.107 1.223 9.631 1.363L9.426 1.423L9.224 1.783C8.905 2.35 8.349 3.481 8.151 3.968C7.989 4.363 7.95 4.432 7.799 4.584C7.557 4.829 7.361 4.899 6.972 4.879C6.812 4.87 6.474 4.835 6.221 4.8C5.747 4.735 4.812 4.661 4.026 4.626L3.576 4.606L3.172 5C2.95 5.217 2.657 5.532 2.521 5.701C1.809 6.586 1.268 7.695 1.021 8.777C0.993 8.897 1.991 10.304 2.713 11.162C3.086 11.606 3.156 11.759 3.136 12.082C3.118 12.363 3.062 12.468 2.677 12.931C2.145 13.57 1.576 14.338 1.112 15.043L1 15.212L1.074 15.488C1.462 16.94 2.281 18.279 3.373 19.248L3.587 19.438L4.108 19.417C4.864 19.388 5.743 19.314 6.38 19.228C6.686 19.187 7.006 19.153 7.091 19.153C7.386 19.153 7.752 19.345 7.908 19.581C7.952 19.648 8.089 19.936 8.212 20.222C8.447 20.77 8.967 21.812 9.262 22.328L9.437 22.635L9.884 22.747C10.648 22.938 11.164 23 11.995 23C12.906 23 13.642 22.902 14.371 22.685L14.588 22.62L14.805 22.229C15.286 21.36 15.621 20.668 15.959 19.85C16.127 19.444 16.462 19.189 16.864 19.161C16.981 19.153 17.247 19.174 17.508 19.211C18.239 19.318 19.651 19.429 20.262 19.429L20.458 19.429L20.936 18.946C21.736 18.137 22.244 17.374 22.637 16.394C22.784 16.028 22.99 15.353 22.99 15.239C22.99 15.122 22.029 13.768 21.461 13.085C20.905 12.415 20.876 12.362 20.877 12.008C20.877 11.724 20.962 11.563 21.354 11.097C21.751 10.624 22.311 9.874 22.707 9.284L23 8.847L22.961 8.67C22.857 8.193 22.555 7.395 22.296 6.913C22.112 6.569 21.762 6.037 21.519 5.732C21.293 5.448 20.848 4.98 20.594 4.759L20.418 4.606L19.705 4.641C18.881 4.681 18.162 4.743 17.554 4.828C16.783 4.936 16.546 4.896 16.234 4.602C16.08 4.457 16.047 4.398 15.837 3.909C15.559 3.263 15.228 2.589 14.859 1.92L14.584 1.422L14.415 1.372C14.053 1.266 13.555 1.149 13.189 1.083C12.699 0.996 11.593 0.972 11.13 1.037ZM12 8C9.791 8 8 9.791 8 12C8 14.209 9.791 16 12 16C14.209 16 16 14.209 16 12C16 9.791 14.209 8 12 8ZM12 9.5C13.381 9.5 14.5 10.619 14.5 12C14.5 13.381 13.381 14.5 12 14.5C10.619 14.5 9.5 13.381 9.5 12C9.5 10.619 10.619 9.5 12 9.5Z" fill="currentColor"/></svg>
+                <h2 className="text-lg font-semibold text-gray-900">General Settings</h2>
+              </div>
+              <button onClick={() => setGeneralSettingsOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" fill="currentColor"/></svg>
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {/* Campaign name */}
+              <div className="border border-gray-200 rounded-xl px-4 py-3 focus-within:border-[#4F46E5] focus-within:ring-1 focus-within:ring-[#4F46E5] transition-all">
+                <label className="block text-xs text-gray-400 mb-1">Campaign name</label>
+                <input value={campaignName} onChange={(e) => setCampaignName(e.target.value)} className="w-full text-base font-medium text-gray-900 bg-transparent outline-none" placeholder="New campaign" />
+              </div>
+
+              {/* Use case */}
+              <div className="relative">
+                <button onClick={() => setUseCaseOpen(!useCaseOpen)} className={`w-full border rounded-xl px-4 py-3 flex items-center justify-between transition-all ${useCaseOpen ? "border-[#4F46E5] ring-1 ring-[#4F46E5]" : "border-gray-200 hover:border-gray-300"}`}>
+                  <div className="text-left">
+                    <p className="text-xs text-gray-400">Use case <span className="text-gray-300">(optional)</span></p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <span>{useCase}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className={`transition-transform ${useCaseOpen ? "rotate-180" : ""}`}><path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
+                </button>
+                {useCaseOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 overflow-hidden">
+                    {["Not specific", "Cold Outreach", "Inbound", "Pre-qualification", "Event Confirmation", "Lead Revival", "Welcome & Onboarding"].map((opt) => (
+                      <button key={opt} onClick={() => { setUseCase(opt); setUseCaseOpen(false); }} className={`w-full px-4 py-3 text-sm text-left hover:bg-gray-50 flex items-center gap-3 ${useCase === opt ? "text-[#4F46E5] font-medium" : "text-gray-700"}`}>
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Call type cards */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { key: "outgoing", label: "Outgoing", desc: "Start the campaign by sending messages or making calls to your contacts.", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M8.61 6C8.61 5.586 8.946 5.25 9.36 5.25H18C18.414 5.25 18.75 5.586 18.75 6V14.64C18.75 15.054 18.414 15.39 18 15.39C17.586 15.39 17.25 15.054 17.25 14.64V7.811L6.53 18.53C6.237 18.823 5.763 18.823 5.47 18.53C5.177 18.237 5.177 17.763 5.47 17.47L16.189 6.75H9.36C8.946 6.75 8.61 6.414 8.61 6Z" fill="currentColor"/></svg> },
+                  { key: "incoming", label: "Incoming", desc: "Handle and respond to incoming calls from new or existing contacts.", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M15.39 9.39C15.39 9.804 15.054 10.14 14.64 10.14H5.811L16.53 20.859C16.823 21.152 16.823 21.626 16.53 21.919C16.237 22.212 15.763 22.212 15.47 21.919L4.75 11.2V18.03C4.75 18.444 4.414 18.78 4 18.78C3.586 18.78 3.25 18.444 3.25 18.03V9.39C3.25 8.976 3.586 8.64 4 8.64H14.64C15.054 8.64 15.39 8.976 15.39 9.39Z" fill="currentColor"/></svg> },
+                ].map(({ key, label, desc, icon }) => (
+                  <button key={key} onClick={() => setCallType(key as "outgoing" | "incoming")} className={`relative rounded-xl border-2 p-4 text-left transition-all ${callType === key ? "border-[#4F46E5] bg-[#FAFBFF]" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-gray-700">{icon}</span>
+                      {callType === key && (
+                        <div className="w-5 h-5 rounded-md bg-[#4F46E5] flex items-center justify-center">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900 mb-1">{label}</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">{desc}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Campaign Instructions */}
+              <button className="w-full border border-gray-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-gray-500 shrink-0"><path fillRule="evenodd" clipRule="evenodd" d="M16.154 3.004C17.739 3.084 19 4.395 19 6V18C19 19.657 17.657 21 16 21H8C6.343 21 5 19.657 5 18V6C5 4.343 6.343 3 8 3H16L16.154 3.004ZM8 4.5C7.172 4.5 6.5 5.172 6.5 6V18C6.5 18.828 7.172 19.5 8 19.5H16C16.828 19.5 17.5 18.828 17.5 18V6C17.5 5.172 16.828 4.5 16 4.5H8Z" fill="currentColor"/><path d="M8.75 9H15.25M8.75 12H15.25M8.75 15H12.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                <span className="text-sm font-medium text-gray-700">Campaign Instructions</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -709,6 +906,46 @@ export default function CampaignEditor(props: Props) {
 }
 
 // ── Icons ──────────────────────────────────────────────────────────────────
+
+// ── Workflow helpers ───────────────────────────────────────────────────────
+
+function WorkflowDash() {
+  return (
+    <div className="flex items-center self-start mt-[70px] shrink-0">
+      <div className="w-8 border-t-2 border-dashed border-gray-300" />
+    </div>
+  );
+}
+
+function WorkflowColumn({ title, icon, description, actionLabel }: { title: string; icon: string; description: string; actionLabel: string }) {
+  const iconEl = icon === "bolt" ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-amber-500"><path d="M13 2L4.093 12.688H12L11 22L19.907 11.312H12L13 2Z" fill="currentColor"/></svg>
+  ) : icon === "thumb" ? (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-blue-500"><path fillRule="evenodd" clipRule="evenodd" d="M14 2.75C13.172 2.75 12.5 3.422 12.5 4.25V9.25H7C5.757 9.25 4.75 10.257 4.75 11.5V19.5C4.75 20.743 5.757 21.75 7 21.75H17C18.243 21.75 19.25 20.743 19.25 19.5V11.5C19.25 10.257 18.243 9.25 17 9.25H14L14 4.25C14 3.422 13.328 2.75 12.5 2.75Z" fill="currentColor"/></svg>
+  ) : (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-purple-500"><path fillRule="evenodd" clipRule="evenodd" d="M21.5 4.5C21.5 5.605 20.605 6.5 19.5 6.5C18.395 6.5 17.5 5.605 17.5 4.5C17.5 3.395 18.395 2.5 19.5 2.5C20.605 2.5 21.5 3.395 21.5 4.5ZM4.5 15.5C6.433 15.5 8 13.933 8 12C8 10.067 6.433 8.5 4.5 8.5C2.567 8.5 1 10.067 1 12C1 13.933 2.567 15.5 4.5 15.5ZM6.5 12C6.5 13.105 5.605 14 4.5 14C3.395 14 2.5 13.105 2.5 12C2.5 10.895 3.395 10 4.5 10C5.605 10 6.5 10.895 6.5 12ZM19.5 21.5C20.605 21.5 21.5 20.605 21.5 19.5C21.5 18.395 20.605 17.5 19.5 17.5C18.395 17.5 17.5 18.395 17.5 19.5C17.5 20.605 18.395 21.5 19.5 21.5Z" fill="currentColor"/></svg>
+  );
+
+  return (
+    <div className="w-[220px] shrink-0 bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+      <div className="flex items-center gap-2 mb-2">
+        {iconEl}
+        <span className="text-sm font-semibold text-gray-800">{title}</span>
+      </div>
+      <p className="text-xs text-gray-500 mb-4 leading-relaxed">{description}</p>
+      <button className="w-full border border-gray-200 rounded-xl py-2 text-sm text-gray-600 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
+        {actionLabel === "Generate" ? (
+          <>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3L10.5 9H15L11 12L12.5 18L9 15L5.5 18L7 12L3 9H7.5L9 3Z" fill="currentColor"/></svg>
+            Generate
+          </>
+        ) : (
+          <><span className="text-gray-400">+</span> Add</>
+        )}
+      </button>
+    </div>
+  );
+}
 
 function TabIcon({ tab }: { tab: Tab }) {
   if (tab === "Script") return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M19.5 9C21.433 9 23 7.433 23 5.5C23 3.567 21.433 2 19.5 2C17.567 2 16 3.567 16 5.5C16 7.433 17.567 9 19.5 9ZM19.5 7.5C20.605 7.5 21.5 6.605 21.5 5.5C21.5 4.395 20.605 3.5 19.5 3.5C18.395 3.5 17.5 4.395 17.5 5.5C17.5 6.605 18.395 7.5 19.5 7.5Z" fill="currentColor"/><path fillRule="evenodd" clipRule="evenodd" d="M4.5 15.5C6.433 15.5 8 13.933 8 12C8 10.067 6.433 8.5 4.5 8.5C2.567 8.5 1 10.067 1 12C1 13.933 2.567 15.5 4.5 15.5ZM4.5 14C5.605 14 6.5 13.105 6.5 12C6.5 10.895 5.605 10 4.5 10C3.395 10 2.5 10.895 2.5 12C2.5 13.105 3.395 14 4.5 14Z" fill="currentColor"/><path fillRule="evenodd" clipRule="evenodd" d="M23 18.5C23 20.433 21.433 22 19.5 22C17.567 22 16 20.433 16 18.5C16 16.567 17.567 15 19.5 15C21.433 15 23 16.567 23 18.5ZM21.5 18.5C21.5 19.605 20.605 20.5 19.5 20.5C18.395 20.5 17.5 19.605 17.5 18.5C17.5 17.395 18.395 16.5 19.5 16.5C20.605 16.5 21.5 17.395 21.5 18.5Z" fill="currentColor"/><path d="M14 6.25C13.31 6.25 12.75 6.81 12.75 7.5V10C12.75 10.788 12.419 11.499 11.888 12C12.419 12.501 12.75 13.212 12.75 14V16.5C12.75 17.19 13.31 17.75 14 17.75C14.414 17.75 14.75 18.086 14.75 18.5C14.75 18.914 14.414 19.25 14 19.25C12.481 19.25 11.25 18.019 11.25 16.5V14C11.25 13.31 10.69 12.75 10 12.75C9.586 12.75 9.25 12.414 9.25 12C9.25 11.586 9.586 11.25 10 11.25C10.69 11.25 11.25 10.69 11.25 10V7.5C11.25 5.981 12.481 4.75 14 4.75C14.414 4.75 14.75 5.086 14.75 5.5C14.75 5.914 14.414 6.25 14 6.25Z" fill="currentColor"/></svg>;
