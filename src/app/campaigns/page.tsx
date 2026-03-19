@@ -37,7 +37,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: Tooltip
   );
 }
 import CampaignsTable from "@/components/CampaignsTable";
-import NewCampaignModal from "@/components/NewCampaignModal";
+import CampaignEditor from "@/components/CampaignEditor";
 import AddGroupModal from "@/components/AddGroupModal";
 import Pagination from "@/components/Pagination";
 import { fetchCampaigns, insertCampaign, deleteCampaign, archiveCampaign, recoverCampaign, Campaign, Group } from "@/lib/campaignData";
@@ -319,9 +319,9 @@ export default function CampaignsPage() {
       </div>
 
       {showNewModal && (
-        <NewCampaignModal
+        <CampaignEditor
           onClose={() => setShowNewModal(false)}
-          onAdd={handleAddCampaign}
+          onSave={handleAddCampaign}
           nextId={campaigns.length + 1}
           availableGroups={allGroups}
         />
