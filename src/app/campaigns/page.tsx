@@ -136,15 +136,14 @@ export default function CampaignsPage() {
       setCampaigns((prev) => [saved, ...prev]);
       addNotification(`New campaign added: "${saved.name}"`);
       showToast(`Campaign "${saved.name}" added successfully!`);
-    } catch {
-      setCampaigns((prev) => [campaign, ...prev]);
-      addNotification(`New campaign added: "${campaign.name}"`);
-      showToast(`Campaign "${campaign.name}" added successfully!`);
+      setShowNewModal(false);
+      setActiveTab(campaign.group);
+      setSearchQuery("");
+      setCurrentPage(1);
+    } catch (err) {
+      console.error("Failed to save campaign:", err);
+      showToast("Failed to save campaign. Please try again.");
     }
-    setShowNewModal(false);
-    setActiveTab(campaign.group);
-    setSearchQuery("");
-    setCurrentPage(1);
   }
 
   function handleAddGroup(name: string) {

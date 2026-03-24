@@ -374,13 +374,41 @@ function CampaignEditorInner({ onClose, onSave, nextId, availableGroups, initial
     <div className="fixed inset-0 z-50 flex flex-col bg-[#FAFAFA]">
 
       {/* ── Top Bar ── */}
-      <div className="grid items-center px-4 pt-4 pb-0 gap-6 w-full z-10 shrink-0" style={{ gridTemplateColumns: "1fr auto 1fr", minWidth: 752 }}>
+      {/* Mobile layout: 2 rows */}
+      <div className="md:hidden flex flex-col gap-2 px-3 pt-3 pb-2 shrink-0 bg-[#FAFAFA] border-b border-[#E4E7E5]">
+        {/* Row 1: name + actions */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0 bg-white rounded-full border border-[#E4E7E5] px-3 py-2 shadow-sm cursor-pointer" onClick={() => setGeneralSettingsOpen(true)}>
+            <div className="w-6 h-6 rounded-lg bg-[#4F46E5] flex items-center justify-center shrink-0">
+              <span className="text-white font-bold text-xs leading-none">V</span>
+            </div>
+            {editingName ? (
+              <input autoFocus value={campaignName} onChange={(e) => setCampaignName(e.target.value)} onBlur={() => setEditingName(false)} onKeyDown={(e) => { if (e.key === "Enter") setEditingName(false); }} className="text-sm font-semibold bg-transparent outline-none flex-1 min-w-0" onClick={(e) => e.stopPropagation()} />
+            ) : (
+              <span className="text-sm font-semibold truncate flex-1 min-w-0">{campaignName}</span>
+            )}
+          </div>
+          <button onClick={onClose} className="px-3 py-2 rounded-full border border-[#E4E7E5] bg-white text-sm font-medium text-[#181B19] shadow-sm shrink-0">Cancel</button>
+          <button onClick={handleSave} className="px-3 py-2 rounded-full bg-[#4F46E5] text-white text-sm font-semibold shadow-md shrink-0">Save</button>
+        </div>
+        {/* Row 2: tabs */}
+        <div className="flex items-center bg-white rounded-full border border-[#E4E7E5] p-1 shadow-sm gap-1">
+          {(["Script", "Scenarios", "Workflow"] as Tab[]).map((tab) => (
+            <button key={tab} onClick={() => setActiveTab(tab)} className={`flex items-center justify-center gap-1.5 rounded-full px-3 py-2 font-semibold text-xs whitespace-nowrap transition-all grow ${activeTab === tab ? "bg-white text-[#181B19] shadow-sm" : "text-[#707B73]"}`}>
+              <TabIcon tab={tab} />{tab}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop layout: 3-column grid */}
+      <div className="hidden md:grid items-center px-4 pt-4 pb-0 gap-6 w-full z-10 shrink-0" style={{ gridTemplateColumns: "1fr auto 1fr", minWidth: 752 }}>
         {/* Left */}
         <div className="flex items-center gap-2 min-w-0 justify-start">
           <div className="flex items-center bg-white rounded-full border border-[#E4E7E5] p-1 shadow-sm shrink-0 gap-1.5 px-4" style={{ minWidth: 228 }}>
             <div className="w-8 min-w-8 h-8 rounded-[10px] bg-[#4F46E5] flex items-center justify-center shrink-0">
-                <span className="text-white font-bold text-base leading-none">V</span>
-              </div>
+              <span className="text-white font-bold text-base leading-none">V</span>
+            </div>
             <div className="flex items-center gap-2 rounded-full bg-white px-[14px] py-[11px] text-[#181B19] cursor-pointer hover:bg-[#0000000A] grow overflow-hidden" onClick={() => setGeneralSettingsOpen(true)}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0"><path fillRule="evenodd" clipRule="evenodd" d="M8.61 6C8.61 5.586 8.946 5.25 9.36 5.25H18C18.414 5.25 18.75 5.586 18.75 6V14.64C18.75 15.054 18.414 15.39 18 15.39C17.586 15.39 17.25 15.054 17.25 14.64V7.811L6.53 18.53C6.237 18.823 5.763 18.823 5.47 18.53C5.177 18.237 5.177 17.763 5.47 17.47L16.189 6.75H9.36C8.946 6.75 8.61 6.414 8.61 6Z" fill="currentColor" /></svg>
               {editingName ? (
@@ -617,7 +645,7 @@ function CampaignEditorInner({ onClose, onSave, nextId, availableGroups, initial
 
         {/* ── Script panel ── */}
         {scriptPanelOpen && (
-          <div className="w-[680px] shrink-0 bg-white border-l border-gray-100 flex flex-col shadow-[-8px_0_32px_0_rgba(0,0,0,0.06)] overflow-y-auto">
+          <div className="w-full md:w-[680px] md:shrink-0 bg-white border-l border-gray-100 flex flex-col shadow-[-8px_0_32px_0_rgba(0,0,0,0.06)] overflow-y-auto">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h3 className="text-base font-semibold text-gray-900">Intro Script</h3>
@@ -718,7 +746,7 @@ function CampaignEditorInner({ onClose, onSave, nextId, availableGroups, initial
       {/* ── General Settings Modal ── */}
       {generalSettingsOpen && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center overflow-y-auto" style={{ pointerEvents: "auto" }} onClick={() => { setGeneralSettingsOpen(false); setUseCaseOpen(false); setGroupOpen(false); setStatusOpen(false); }}>
-          <div className="relative bg-white shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] rounded-2xl flex flex-col max-w-[700px] w-full mx-4 max-h-[95vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="relative bg-white shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] flex flex-col w-full mx-0 sm:mx-4 sm:rounded-2xl sm:max-w-[700px] max-h-[100dvh] sm:max-h-[95vh] overflow-hidden rounded-none" onClick={(e) => e.stopPropagation()}>
 
             {/* ── Header ── */}
             <div className="sticky top-0 bg-white z-10 shadow-sm">
@@ -1133,46 +1161,6 @@ export default function CampaignEditor(props: Props) {
 }
 
 // ── Icons ──────────────────────────────────────────────────────────────────
-
-// ── Workflow helpers ───────────────────────────────────────────────────────
-
-function WorkflowDash() {
-  return (
-    <div className="flex items-center self-start mt-[70px] shrink-0">
-      <div className="w-8 border-t-2 border-dashed border-gray-300" />
-    </div>
-  );
-}
-
-function WorkflowColumn({ title, icon, description, actionLabel }: { title: string; icon: string; description: string; actionLabel: string }) {
-  const iconEl = icon === "bolt" ? (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-amber-500"><path d="M13 2L4.093 12.688H12L11 22L19.907 11.312H12L13 2Z" fill="currentColor"/></svg>
-  ) : icon === "thumb" ? (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-blue-500"><path fillRule="evenodd" clipRule="evenodd" d="M14 2.75C13.172 2.75 12.5 3.422 12.5 4.25V9.25H7C5.757 9.25 4.75 10.257 4.75 11.5V19.5C4.75 20.743 5.757 21.75 7 21.75H17C18.243 21.75 19.25 20.743 19.25 19.5V11.5C19.25 10.257 18.243 9.25 17 9.25H14L14 4.25C14 3.422 13.328 2.75 12.5 2.75Z" fill="currentColor"/></svg>
-  ) : (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="text-purple-500"><path fillRule="evenodd" clipRule="evenodd" d="M21.5 4.5C21.5 5.605 20.605 6.5 19.5 6.5C18.395 6.5 17.5 5.605 17.5 4.5C17.5 3.395 18.395 2.5 19.5 2.5C20.605 2.5 21.5 3.395 21.5 4.5ZM4.5 15.5C6.433 15.5 8 13.933 8 12C8 10.067 6.433 8.5 4.5 8.5C2.567 8.5 1 10.067 1 12C1 13.933 2.567 15.5 4.5 15.5ZM6.5 12C6.5 13.105 5.605 14 4.5 14C3.395 14 2.5 13.105 2.5 12C2.5 10.895 3.395 10 4.5 10C5.605 10 6.5 10.895 6.5 12ZM19.5 21.5C20.605 21.5 21.5 20.605 21.5 19.5C21.5 18.395 20.605 17.5 19.5 17.5C18.395 17.5 17.5 18.395 17.5 19.5C17.5 20.605 18.395 21.5 19.5 21.5Z" fill="currentColor"/></svg>
-  );
-
-  return (
-    <div className="w-[220px] shrink-0 bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-      <div className="flex items-center gap-2 mb-2">
-        {iconEl}
-        <span className="text-sm font-semibold text-gray-800">{title}</span>
-      </div>
-      <p className="text-xs text-gray-500 mb-4 leading-relaxed">{description}</p>
-      <button className="w-full border border-gray-200 rounded-xl py-2 text-sm text-gray-600 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors">
-        {actionLabel === "Generate" ? (
-          <>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 3L10.5 9H15L11 12L12.5 18L9 15L5.5 18L7 12L3 9H7.5L9 3Z" fill="currentColor"/></svg>
-            Generate
-          </>
-        ) : (
-          <><span className="text-gray-400">+</span> Add</>
-        )}
-      </button>
-    </div>
-  );
-}
 
 function TabIcon({ tab }: { tab: Tab }) {
   if (tab === "Script") return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path fillRule="evenodd" clipRule="evenodd" d="M19.5 9C21.433 9 23 7.433 23 5.5C23 3.567 21.433 2 19.5 2C17.567 2 16 3.567 16 5.5C16 7.433 17.567 9 19.5 9ZM19.5 7.5C20.605 7.5 21.5 6.605 21.5 5.5C21.5 4.395 20.605 3.5 19.5 3.5C18.395 3.5 17.5 4.395 17.5 5.5C17.5 6.605 18.395 7.5 19.5 7.5Z" fill="currentColor"/><path fillRule="evenodd" clipRule="evenodd" d="M4.5 15.5C6.433 15.5 8 13.933 8 12C8 10.067 6.433 8.5 4.5 8.5C2.567 8.5 1 10.067 1 12C1 13.933 2.567 15.5 4.5 15.5ZM4.5 14C5.605 14 6.5 13.105 6.5 12C6.5 10.895 5.605 10 4.5 10C3.395 10 2.5 10.895 2.5 12C2.5 13.105 3.395 14 4.5 14Z" fill="currentColor"/><path fillRule="evenodd" clipRule="evenodd" d="M23 18.5C23 20.433 21.433 22 19.5 22C17.567 22 16 20.433 16 18.5C16 16.567 17.567 15 19.5 15C21.433 15 23 16.567 23 18.5ZM21.5 18.5C21.5 19.605 20.605 20.5 19.5 20.5C18.395 20.5 17.5 19.605 17.5 18.5C17.5 17.395 18.395 16.5 19.5 16.5C20.605 16.5 21.5 17.395 21.5 18.5Z" fill="currentColor"/><path d="M14 6.25C13.31 6.25 12.75 6.81 12.75 7.5V10C12.75 10.788 12.419 11.499 11.888 12C12.419 12.501 12.75 13.212 12.75 14V16.5C12.75 17.19 13.31 17.75 14 17.75C14.414 17.75 14.75 18.086 14.75 18.5C14.75 18.914 14.414 19.25 14 19.25C12.481 19.25 11.25 18.019 11.25 16.5V14C11.25 13.31 10.69 12.75 10 12.75C9.586 12.75 9.25 12.414 9.25 12C9.25 11.586 9.586 11.25 10 11.25C10.69 11.25 11.25 10.69 11.25 10V7.5C11.25 5.981 12.481 4.75 14 4.75C14.414 4.75 14.75 5.086 14.75 5.5C14.75 5.914 14.414 6.25 14 6.25Z" fill="currentColor"/></svg>;

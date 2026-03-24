@@ -45,7 +45,64 @@ export default function CampaignsTable({ campaigns, onDuplicate, onArchive, onRe
 
   return (
     <>
-      <div className="bg-[var(--bg-app)] w-full overflow-x-auto">
+      {/* ── Mobile card view ── */}
+      <div className="md:hidden divide-y divide-[var(--border)] bg-[var(--bg-app)]">
+        {campaigns.map((campaign) => (
+          <div key={campaign.id}
+            onClick={() => router.push('/campaigns/' + campaign.id)}
+            className="px-4 py-3.5 hover:bg-[var(--bg-hover)] active:bg-[var(--bg-hover)] cursor-pointer transition-colors">
+            <div className="flex items-start justify-between gap-2 mb-2.5">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <span className="w-5 h-5 rounded-md bg-blue-500/10 flex items-center justify-center">
+                    <ArrowUpRight size={10} className="text-blue-400" />
+                  </span>
+                  <span className="w-5 h-5 rounded-md bg-[var(--bg-elevated)] flex items-center justify-center">
+                    <Phone size={10} className="text-[var(--text-2)]" />
+                  </span>
+                </div>
+                <span className="font-semibold text-[var(--text-1)] text-sm truncate">{campaign.name}</span>
+                {campaign.isDuplicate && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">Dup</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <StatusBadge status={campaign.status} />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (openMenuId === campaign.id) { setOpenMenuId(null); }
+                    else {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                      setOpenMenuId(campaign.id);
+                    }
+                  }}
+                  className="p-1.5 text-[var(--text-3)] hover:text-[var(--text-1)] hover:bg-[var(--bg-elevated)] rounded-md transition-colors">
+                  <MoreHorizontal size={15} />
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-[10px] text-[var(--text-3)] mb-0.5">Contacts</p>
+                <p className="text-xs font-semibold text-[var(--text-2)]">{campaign.totalContacts.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[var(--text-3)] mb-0.5">Calls</p>
+                <p className="text-xs font-semibold text-[var(--text-2)]">{campaign.totalCalls.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[var(--text-3)] mb-0.5">Connect</p>
+                <p className="text-xs font-semibold text-[var(--text-2)]">{campaign.connectRate}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desktop table view ── */}
+      <div className="hidden md:block bg-[var(--bg-app)] w-full overflow-x-auto">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="border-b border-[var(--border)] bg-[var(--bg-card)]">

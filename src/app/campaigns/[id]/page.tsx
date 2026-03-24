@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, ArrowUpRight, Phone, Pencil, PhoneCall, UserPlus,
   Search, Calendar, Download, Users, ChevronLeft, ChevronRight, Trash2, X,
+  MoreHorizontal, ChevronDown,
 } from "lucide-react";
 import { fetchCampaigns, updateCampaignName, Campaign } from "@/lib/campaignData";
 import { fetchContactsByCampaignId, insertContact, deleteContact, ContactStatus, Contact } from "@/lib/contactData";
@@ -13,16 +14,16 @@ import StatusBadge from "@/components/StatusBadge";
 
 const PAGE_SIZE = 8;
 
-// ── Contact status badge ──────────────────────────────────────────────────────
+// ── Status styles ─────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<ContactStatus, string> = {
-  Unreached:        "bg-amber-500/10 text-amber-400 border border-amber-500/20",
-  Interested:       "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-  "Sent SMS":       "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-  "Declined Offer": "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
-  "Not interested": "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
-  "Do not call":    "bg-red-500/10 text-red-400 border border-red-500/20",
-  "Pending Retry":  "bg-pink-500/10 text-pink-400 border border-pink-500/20",
+  Unreached:        "bg-amber-500/10 text-amber-600 border border-amber-400/30",
+  Interested:       "bg-emerald-500/10 text-emerald-600 border border-emerald-400/30",
+  "Sent SMS":       "bg-emerald-500/10 text-emerald-600 border border-emerald-400/30",
+  "Declined Offer": "bg-yellow-500/10 text-yellow-600 border border-yellow-400/30",
+  "Not interested": "bg-yellow-500/10 text-yellow-600 border border-yellow-400/30",
+  "Do not call":    "bg-red-500/10 text-red-500 border border-red-400/30",
+  "Pending Retry":  "bg-pink-500/10 text-pink-500 border border-pink-400/30",
 };
 
 function ContactStatusBadge({ status }: { status: ContactStatus }) {
@@ -60,6 +61,35 @@ const STATUS_ORDER: ContactStatus[] = [
   "Do not call", "Pending Retry", "Unreached",
 ];
 
+// ── Attempt result options (for the status popover) ──────────────────────────
+
+const ATTEMPT_RESULT_OPTIONS = [
+  { label: "Interested",     color: "#10B981" },
+  { label: "Email",          color: "#10B981" },
+  { label: "Sent SMS",       color: "#10B981" },
+  { label: "Not interested", color: "#F59E0B" },
+  { label: "Declined Offer", color: "#F59E0B" },
+  { label: "Voice mail",     color: "#F59E0B" },
+  { label: "Call later",     color: "#F59E0B" },
+];
+
+// ── Simulate per-call history entries ────────────────────────────────────────
+
+function generateAttempts(contact: Contact) {
+  const results = ["Voice mail", "Voice mail", "Call later", "Voice mail", "Voice mail", "Voice mail", "Call later"];
+  const durations = ["00:04", "00:05", "00:03", "00:04", "00:02", "00:03", "00:03"];
+  const times = ["06:30 am", "06:30 am", "05:00 am", "03:30 am", "03:31 am", "06:30 am", "05:00 am"];
+  const dates = ["Mar 2", "Mar 2", "Mar 2", "Mar 2", "Feb 28", "Feb 27", "Feb 27"];
+  const count = Math.min(contact.attempts, 10);
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    date: dates[i % dates.length],
+    time: times[i % times.length],
+    duration: durations[i % durations.length],
+    result: results[i % results.length],
+  }));
+}
+
 // ── CSV export ────────────────────────────────────────────────────────────────
 
 function exportToCSV(contacts: Contact[], filename: string) {
@@ -90,11 +120,35 @@ export default function CampaignDetailPage() {
   const [addPhone, setAddPhone] = useState("");
   const [deleteContactId, setDeleteContactId] = useState<number | null>(null);
 
+  // Side panel state
+  const [selectedContactIdx, setSelectedContactIdx] = useState<number | null>(null);
+  const [contactPanelTab, setContactPanelTab] = useState<"contact-info" | "call-attempts">("call-attempts");
+  const [threeDotsOpen, setThreeDotsOpen] = useState(false);
+  const [statusPopoverAttemptIdx, setStatusPopoverAttemptIdx] = useState<number | null>(null);
+  const [attemptsHistoryOpen, setAttemptsHistoryOpen] = useState(true);
+  const [attemptResults, setAttemptResults] = useState<Record<string, string>>({});
+  const threeDotsRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     Promise.all([fetchCampaigns(), fetchContactsByCampaignId(id)])
       .then(([camps, ctcts]) => { setCampaign(camps.find((c) => c.id === id)); setContacts(ctcts); })
       .finally(() => setLoadingPage(false));
   }, [id]);
+
+  // Close three dots on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (threeDotsRef.current && !threeDotsRef.current.contains(e.target as Node)) {
+        setThreeDotsOpen(false);
+      }
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setStatusPopoverAttemptIdx(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   if (loadingPage) {
     return (
@@ -136,6 +190,23 @@ export default function CampaignDetailPage() {
   const safePage = Math.min(currentPage, totalPages);
   const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  const selectedContact = selectedContactIdx !== null ? filtered[selectedContactIdx] : null;
+  const simulatedAttempts = selectedContact ? generateAttempts(selectedContact) : [];
+
+  function openContactPanel(globalIdx: number) {
+    setSelectedContactIdx(globalIdx);
+    setContactPanelTab("call-attempts");
+    setThreeDotsOpen(false);
+    setStatusPopoverAttemptIdx(null);
+    setAttemptsHistoryOpen(true);
+  }
+
+  function closeContactPanel() {
+    setSelectedContactIdx(null);
+    setThreeDotsOpen(false);
+    setStatusPopoverAttemptIdx(null);
+  }
+
   function handleSearch(q: string) { setSearchQuery(q); setCurrentPage(1); }
 
   async function handleSaveEdit() {
@@ -156,8 +227,25 @@ export default function CampaignDetailPage() {
 
   async function handleDeleteContact(contactId: number) {
     setContacts((prev) => prev.filter((c) => c.id !== contactId));
+    if (selectedContact?.id === contactId) closeContactPanel();
     setDeleteContactId(null);
     try { await deleteContact(contactId); } catch { /* UI updated */ }
+  }
+
+  function handleArchiveContact() {
+    if (!selectedContact) return;
+    setContacts((prev) => prev.filter((c) => c.id !== selectedContact.id));
+    closeContactPanel();
+    setThreeDotsOpen(false);
+  }
+
+  // ── Attempt result badge style ──────────────────────────────────────────────
+  function attemptBadgeStyle(result: string) {
+    if (result === "Interested" || result === "Email" || result === "Sent SMS")
+      return "bg-emerald-50 text-emerald-600 border border-emerald-200";
+    if (result === "Call later")
+      return "bg-orange-50 text-orange-500 border border-orange-200";
+    return "bg-amber-50 text-amber-600 border border-amber-200"; // Voice mail, etc.
   }
 
   return (
@@ -187,19 +275,18 @@ export default function CampaignDetailPage() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-[var(--border)] rounded-lg text-[var(--text-2)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] transition-colors">
             <Pencil size={13} /> Edit
           </button>
-          <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-[var(--border)] rounded-lg text-[var(--text-2)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] transition-colors">
+          <button className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-[var(--border)] rounded-lg text-[var(--text-2)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] transition-colors">
             <PhoneCall size={13} /> Test Call
           </button>
           <button onClick={() => setShowAdd(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors shadow-md shadow-blue-600/20">
-            <UserPlus size={13} /> Add Contact
+            <UserPlus size={13} /><span className="hidden sm:inline">Add Contact</span><span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
 
       {/* Stats cards */}
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        {/* Contact progress */}
         <div className="flex-1 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4">
           <div className="flex items-baseline justify-between mb-3">
             <span className="text-sm text-[var(--text-2)] font-medium">Total contacts:</span>
@@ -225,11 +312,9 @@ export default function CampaignDetailPage() {
             ))}
           </div>
         </div>
-
-        {/* Stats */}
         <div className="w-full sm:w-56 bg-[var(--bg-card)] rounded-xl border border-[var(--border)] p-4 shrink-0">
           <p className="text-sm font-semibold text-[var(--text-2)] mb-3">
-            Total Calls: <span className="text-[var(--text-1)]">{computedTotalCalls.toLocaleString()}</span>
+            Total Interactions: <span className="text-[var(--text-1)]">{computedTotalCalls.toLocaleString()}</span>
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -250,91 +335,265 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      {/* Contacts table */}
-      <div className="bg-[var(--bg-app)] rounded-xl border border-[var(--border)] overflow-hidden">
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 p-4 border-b border-[var(--border)] bg-[var(--bg-card)]">
-          <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-3)]" />
-            <input type="text" placeholder="Search Contacts" value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-9 pr-10 py-2 text-sm bg-[var(--bg-app)] border border-[var(--border)] rounded-lg placeholder-[var(--text-3)] text-[var(--text-1)] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
-            />
-            <Calendar size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-3)] cursor-pointer" />
+      {/* Table + Side Panel flex layout */}
+      <div className="flex gap-4 items-start relative">
+        {/* Contacts table */}
+        <div className={`bg-[var(--bg-app)] rounded-xl border border-[var(--border)] overflow-hidden transition-all ${selectedContact ? "flex-1 min-w-0" : "w-full"}`}>
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 p-4 border-b border-[var(--border)] bg-[var(--bg-card)]">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-3)]" />
+              <input type="text" placeholder="Search Contacts" value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full pl-9 pr-10 py-2 text-sm bg-[var(--bg-app)] border border-[var(--border)] rounded-lg placeholder-[var(--text-3)] text-[var(--text-1)] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              />
+              <Calendar size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-3)] cursor-pointer" />
+            </div>
+            <button onClick={() => exportToCSV(filtered, `${campaign.name}-contacts.csv`)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-[var(--border)] rounded-lg text-[var(--text-2)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] transition-colors whitespace-nowrap shrink-0">
+              <Download size={13} /> Export contacts
+            </button>
           </div>
-          <button onClick={() => exportToCSV(filtered, `${campaign.name}-contacts.csv`)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-[var(--border)] rounded-lg text-[var(--text-2)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] transition-colors whitespace-nowrap shrink-0">
-            <Download size={13} /> Export contacts
-          </button>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[500px] text-sm">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--bg-card)]">
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide whitespace-nowrap">Name &amp; Phone Number</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide whitespace-nowrap">Attempts</th>
+                  {!selectedContact && <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide whitespace-nowrap">Last Attempt</th>}
+                  {!selectedContact && <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide whitespace-nowrap">Call Duration</th>}
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide">Status</th>
+                  {!selectedContact && <th className="px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide">Events</th>}
+                  <th className="w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.length === 0 ? (
+                  <tr>
+                    <td colSpan={selectedContact ? 4 : 7} className="px-4 py-12 text-center text-sm text-[var(--text-3)]">
+                      {searchQuery ? "No contacts match your search." : "No contacts found for this campaign."}
+                    </td>
+                  </tr>
+                ) : paginated.map((contact, pageIdx) => {
+                  const globalIdx = (safePage - 1) * PAGE_SIZE + pageIdx;
+                  const isSelected = selectedContact?.id === contact.id;
+                  return (
+                    <tr key={contact.id}
+                      onClick={() => openContactPanel(globalIdx)}
+                      className={`group border-b border-[var(--border)] cursor-pointer transition-colors ${isSelected ? "bg-blue-50/50" : "hover:bg-[var(--bg-hover)]"} ${pageIdx === paginated.length - 1 ? "border-b-0" : ""}`}>
+                      <td className="px-4 py-3.5 min-w-[160px]">
+                        <p className="font-medium text-[var(--text-1)]">{contact.name}</p>
+                        <p className="text-xs text-[var(--text-3)] mt-0.5">{contact.phone}</p>
+                      </td>
+                      <td className="px-4 py-3.5 text-right text-[var(--text-2)]">{contact.attempts}</td>
+                      {!selectedContact && <td className="px-4 py-3.5 text-right text-[var(--text-2)] whitespace-nowrap">{contact.lastAttempt}</td>}
+                      {!selectedContact && <td className="px-4 py-3.5 text-right text-[var(--text-2)] whitespace-nowrap">{contact.callDuration}</td>}
+                      <td className="px-4 py-3.5 text-center"><ContactStatusBadge status={contact.status} /></td>
+                      {!selectedContact && <td className="px-4 py-3.5 text-[var(--text-3)] text-xs"></td>}
+                      <td className="px-2 py-3.5 text-center">
+                        <button onClick={(e) => { e.stopPropagation(); setDeleteContactId(contact.id); }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-[var(--text-3)] hover:text-red-400 hover:bg-red-500/10 rounded-md"
+                          title="Remove contact">
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)] bg-[var(--bg-card)]">
+              <p className="text-xs text-[var(--text-3)]">
+                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length} contacts
+              </p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
+                  className="p-1.5 rounded-md text-[var(--text-3)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  <ChevronLeft size={15} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button key={p} onClick={() => setCurrentPage(p)}
+                    className={`w-7 h-7 text-xs rounded-md font-medium transition-colors ${
+                      p === safePage ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-[var(--text-2)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)]"
+                    }`}>
+                    {p}
+                  </button>
+                ))}
+                <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
+                  className="p-1.5 rounded-md text-[var(--text-3)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                  <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-sm">
-            <thead>
-              <tr className="border-b border-[var(--border)] bg-[var(--bg-card)]">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide">Name &amp; Phone</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide whitespace-nowrap">Attempts</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide whitespace-nowrap">Last Attempt</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide whitespace-nowrap">Call Duration</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-[var(--text-2)] uppercase tracking-wide">Status</th>
-                <th className="w-14" />
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-[var(--text-3)]">
-                    {searchQuery ? "No contacts match your search." : "No contacts found for this campaign."}
-                  </td>
-                </tr>
-              ) : paginated.map((contact, index) => (
-                <tr key={contact.id}
-                  className={`group border-b border-[var(--border)] hover:bg-[var(--bg-hover)] transition-colors ${index === paginated.length - 1 ? "border-b-0" : ""}`}>
-                  <td className="px-4 py-3.5 min-w-[200px]">
-                    <p className="font-medium text-[var(--text-1)]">{contact.name}</p>
-                    <p className="text-xs text-[var(--text-3)] mt-0.5">{contact.phone}</p>
-                  </td>
-                  <td className="px-4 py-3.5 text-right text-[var(--text-2)]">{contact.attempts}</td>
-                  <td className="px-4 py-3.5 text-right text-[var(--text-2)] whitespace-nowrap">{contact.lastAttempt}</td>
-                  <td className="px-4 py-3.5 text-right text-[var(--text-2)] whitespace-nowrap">{contact.callDuration}</td>
-                  <td className="px-4 py-3.5 text-center"><ContactStatusBadge status={contact.status} /></td>
-                  <td className="px-4 py-3.5 text-center">
-                    <button onClick={() => setDeleteContactId(contact.id)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-[var(--text-3)] hover:text-red-400 hover:bg-red-500/10 rounded-md"
-                      title="Remove contact">
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* ── Contact side panel (mobile: full-screen overlay, desktop: side panel) ── */}
+        {selectedContact && (
+          <div className="fixed inset-0 z-40 md:static md:inset-auto md:z-auto md:w-[460px] md:shrink-0 bg-white md:border md:border-gray-200 md:rounded-xl md:shadow-lg overflow-hidden flex flex-col" style={{ maxHeight: "100dvh" }}>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)] bg-[var(--bg-card)]">
-            <p className="text-xs text-[var(--text-3)]">
-              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length} contacts
-            </p>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}
-                className="p-1.5 rounded-md text-[var(--text-3)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                <ChevronLeft size={15} />
+            {/* Previous / Next nav */}
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+              <button
+                onClick={() => { if (selectedContactIdx !== null && selectedContactIdx > 0) openContactPanel(selectedContactIdx - 1); }}
+                disabled={selectedContactIdx === 0}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                <ChevronLeft size={15} /> Previous
               </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <button key={p} onClick={() => setCurrentPage(p)}
-                  className={`w-7 h-7 text-xs rounded-md font-medium transition-colors ${
-                    p === safePage ? "bg-blue-600 text-white shadow-md shadow-blue-600/20" : "text-[var(--text-2)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)]"
+              <button
+                onClick={() => { if (selectedContactIdx !== null && selectedContactIdx < filtered.length - 1) openContactPanel(selectedContactIdx + 1); }}
+                disabled={selectedContactIdx === filtered.length - 1}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                Next <ChevronRight size={15} />
+              </button>
+            </div>
+
+            {/* Contact header */}
+            <div className="px-5 pt-4 pb-3 border-b border-gray-100">
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">{selectedContact.name}</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">{selectedContact.phone}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                  <ContactStatusBadge status={selectedContact.status} />
+                  {/* Three dots */}
+                  <div className="relative" ref={threeDotsRef}>
+                    <button onClick={() => setThreeDotsOpen(!threeDotsOpen)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                      <MoreHorizontal size={16} />
+                    </button>
+                    {threeDotsOpen && (
+                      <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 min-w-[160px]">
+                        <button onClick={handleArchiveContact}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                          <Trash2 size={14} /> Archive Contact
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={closeContactPanel}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-gray-100 px-4">
+              {(["contact-info", "call-attempts"] as const).map((tab) => (
+                <button key={tab} onClick={() => setContactPanelTab(tab)}
+                  className={`px-3 py-2.5 text-sm font-medium border-b-2 transition-colors mr-2 ${
+                    contactPanelTab === tab
+                      ? "border-gray-900 text-gray-900"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
                   }`}>
-                  {p}
+                  {tab === "contact-info" ? "Contact Info" : "Call Attempts"}
                 </button>
               ))}
-              <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
-                className="p-1.5 rounded-md text-[var(--text-3)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-1)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-                <ChevronRight size={15} />
-              </button>
+            </div>
+
+            {/* Tab content */}
+            <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: "none" }}>
+
+              {/* Contact Info tab */}
+              {contactPanelTab === "contact-info" && (
+                <div className="divide-y divide-gray-100">
+                  {[
+                    { label: "Name", value: selectedContact.name },
+                    { label: "Phone Number", value: selectedContact.phone },
+                    { label: "Registered_at", value: selectedContact.registeredAt ?? "-" },
+                    { label: "Timezone", value: selectedContact.timezone ?? "-" },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex items-center justify-between px-5 py-3.5 bg-gray-50/60">
+                      <span className="text-sm font-medium text-gray-600">{label}</span>
+                      <span className="text-sm text-gray-900 text-right max-w-[55%]">{value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Call Attempts tab */}
+              {contactPanelTab === "call-attempts" && (
+                <div className="px-5 py-4">
+                  {/* Attempts history accordion */}
+                  <button onClick={() => setAttemptsHistoryOpen(!attemptsHistoryOpen)}
+                    className="w-full flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-gray-800">Attempts history</span>
+                    <ChevronDown size={16} className="text-gray-400 transition-transform" style={{ transform: attemptsHistoryOpen ? "rotate(180deg)" : "rotate(0deg)" }} />
+                  </button>
+
+                  {attemptsHistoryOpen && (
+                    <div className="flex flex-col gap-0">
+                      {simulatedAttempts.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-6">No call attempts yet.</p>
+                      ) : simulatedAttempts.map((attempt) => {
+                        const attemptKey = `${selectedContact.id}-${attempt.id}`;
+                        const currentResult = attemptResults[attemptKey] ?? attempt.result;
+                        return (
+                          <div key={attempt.id} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+                            {/* Radio */}
+                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${attempt.id === 0 ? "border-gray-800" : "border-gray-300"}`}>
+                              {attempt.id === 0 && <div className="w-1.5 h-1.5 rounded-full bg-gray-800" />}
+                            </div>
+                            {/* Date + time + phone icon */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800">{attempt.date}</p>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="text-xs text-gray-400">{attempt.time}</span>
+                                <Phone size={10} className="text-gray-400" />
+                              </div>
+                            </div>
+                            {/* Waveform + duration */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+                                <rect x="0" y="4" width="2" height="6" rx="1" fill="#9CA3AF"/>
+                                <rect x="4" y="2" width="2" height="10" rx="1" fill="#9CA3AF"/>
+                                <rect x="8" y="0" width="2" height="14" rx="1" fill="#9CA3AF"/>
+                                <rect x="12" y="2" width="2" height="10" rx="1" fill="#9CA3AF"/>
+                                <rect x="16" y="4" width="2" height="6" rx="1" fill="#9CA3AF"/>
+                              </svg>
+                              <span className="text-xs text-gray-500 font-mono">{attempt.duration}</span>
+                            </div>
+                            {/* Status badge with popover */}
+                            <div className="relative shrink-0" ref={statusPopoverAttemptIdx === attempt.id ? popoverRef : undefined}>
+                              <button
+                                onClick={() => setStatusPopoverAttemptIdx(statusPopoverAttemptIdx === attempt.id ? null : attempt.id)}
+                                className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${attemptBadgeStyle(currentResult)}`}>
+                                {currentResult}
+                              </button>
+                              {statusPopoverAttemptIdx === attempt.id && (
+                                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1.5 min-w-[170px]">
+                                  {ATTEMPT_RESULT_OPTIONS.map((opt) => (
+                                    <button key={opt.label}
+                                      onClick={() => {
+                                        setAttemptResults((prev) => ({ ...prev, [attemptKey]: opt.label }));
+                                        setStatusPopoverAttemptIdx(null);
+                                      }}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors">
+                                      <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${currentResult === opt.label ? "border-gray-800" : "border-gray-300"}`}>
+                                        {currentResult === opt.label && <div className="w-1.5 h-1.5 rounded-full bg-gray-800" />}
+                                      </div>
+                                      <span className="text-sm font-medium" style={{ color: opt.color }}>{opt.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

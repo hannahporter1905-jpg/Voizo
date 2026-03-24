@@ -18,6 +18,8 @@ export interface Contact {
   lastAttempt: string;
   callDuration: string;
   status: ContactStatus;
+  registeredAt?: string;
+  timezone?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,6 +33,8 @@ function rowToContact(row: any): Contact {
     lastAttempt: row.last_attempt,
     callDuration: row.call_duration,
     status: row.status,
+    registeredAt: row.registered_at ?? undefined,
+    timezone: row.timezone ?? undefined,
   };
 }
 
