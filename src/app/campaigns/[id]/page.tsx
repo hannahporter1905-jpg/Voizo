@@ -139,7 +139,7 @@ export default function CampaignDetailPage() {
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [activeDateFilter, setActiveDateFilter] = useState<string | null>(null);
-  const [calPos, setCalPos] = useState<{ top: number; right: number } | null>(null);
+  const [calPos, setCalPos] = useState<{ top: number; right: number; isMobile: boolean } | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
   const calBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -366,7 +366,8 @@ export default function CampaignDetailPage() {
               onClick={() => {
                 if (!calendarOpen && calBtnRef.current) {
                   const rect = calBtnRef.current.getBoundingClientRect();
-                  setCalPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+                  const isMobile = window.innerWidth < 640;
+                  setCalPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right, isMobile });
                 }
                 setCalendarOpen((v) => !v);
               }}
@@ -631,29 +632,32 @@ export default function CampaignDetailPage() {
       {/* ── Calendar filter dropdown (fixed, outside table) ── */}
       {calendarOpen && calPos && (
         <div ref={calendarRef}
-          style={{ position: "fixed", top: calPos.top, right: Math.max(8, calPos.right) }}
-          className="z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden
-                     w-[calc(100vw-16px)] max-w-[520px]
-                     flex flex-col sm:flex-row">
+          style={calPos.isMobile
+            ? { position: "fixed", top: calPos.top, left: 8, right: 8 }
+            : { position: "fixed", top: calPos.top, right: Math.max(8, calPos.right) }}
+          className="z-[9999] bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col sm:flex-row sm:w-[500px]">
           {/* Quick filters */}
-          <div className="sm:w-44 sm:border-r border-b sm:border-b-0 border-gray-100 py-3 shrink-0">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-4 mb-1">Filter by last attempt</p>
-            <div className="flex flex-wrap sm:flex-col gap-1 sm:gap-0 px-2 sm:px-0">
+          <div className="border-b sm:border-b-0 sm:border-r border-gray-100 py-3 shrink-0 sm:w-44">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-4 mb-2">Filter by last attempt</p>
+            <div className="flex flex-wrap sm:flex-col gap-1 sm:gap-0 px-3 sm:px-0 pb-1 sm:pb-0">
               {["Today","Yesterday","Last 7 Days","Last 30 Days","Last 90 Days","Last 12 Months","This Week","This Month"].map((opt) => (
                 <button key={opt} onClick={() => setActiveDateFilter(activeDateFilter === opt ? null : opt)}
-                  className={`sm:w-full text-left px-3 sm:px-4 py-1.5 sm:py-2 text-sm rounded-lg sm:rounded-none transition-colors whitespace-nowrap
-                    ${activeDateFilter === opt ? "text-blue-600 font-medium bg-blue-50" : "text-gray-700 hover:bg-gray-50"}`}>
+                  className={`text-left px-3 sm:px-4 py-1.5 sm:py-2 text-sm rounded-full sm:rounded-none transition-colors whitespace-nowrap border sm:border-0
+                    ${activeDateFilter === opt
+                      ? "text-blue-600 font-medium bg-blue-50 border-blue-200 sm:bg-blue-50 sm:border-0"
+                      : "text-gray-700 border-gray-200 hover:bg-gray-50 sm:border-0"}`}>
                   {opt}
                 </button>
               ))}
             </div>
           </div>
           {/* Calendar */}
-          <div className="p-4 flex-1 min-w-0">
+          <div className="p-4 flex-1">
+            {/* Month / Year nav */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-1">
                 <select value={calMonth} onChange={(e) => setCalMonth(Number(e.target.value))}
-                  className="text-sm font-semibold text-gray-800 bg-transparent border-none outline-none cursor-pointer pr-1">
+                  className="text-sm font-semibold text-gray-800 bg-transparent border-none outline-none cursor-pointer">
                   {["January","February","March","April","May","June","July","August","September","October","November","December"].map((m,i) => (
                     <option key={m} value={i}>{m}</option>
                   ))}
@@ -667,11 +671,12 @@ export default function CampaignDetailPage() {
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => { const d = new Date(calYear, calMonth - 1); setCalMonth(d.getMonth()); setCalYear(d.getFullYear()); }}
-                  className="p-1 rounded hover:bg-gray-100 text-gray-600 transition-colors"><ChevronLeft size={15} /></button>
+                  className="p-1 rounded hover:bg-gray-100 text-gray-600"><ChevronLeft size={15} /></button>
                 <button onClick={() => { const d = new Date(calYear, calMonth + 1); setCalMonth(d.getMonth()); setCalYear(d.getFullYear()); }}
-                  className="p-1 rounded hover:bg-gray-100 text-gray-600 transition-colors"><ChevronRight size={15} /></button>
+                  className="p-1 rounded hover:bg-gray-100 text-gray-600"><ChevronRight size={15} /></button>
               </div>
             </div>
+            {/* Day grid */}
             <div className="grid grid-cols-7 gap-y-0.5">
               {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => (
                 <div key={d} className="text-center text-[11px] font-semibold text-gray-400 pb-1">{d}</div>
@@ -681,7 +686,7 @@ export default function CampaignDetailPage() {
                 const day = i + 1;
                 const isToday = day === new Date().getDate() && calMonth === new Date().getMonth() && calYear === new Date().getFullYear();
                 return (
-                  <button key={day} className={`h-7 w-7 mx-auto flex items-center justify-center rounded-full text-xs transition-colors
+                  <button key={day} className={`h-8 w-8 mx-auto flex items-center justify-center rounded-full text-sm transition-colors
                     ${isToday ? "bg-blue-600 text-white font-semibold" : "text-gray-700 hover:bg-gray-100"}`}>
                     {day}
                   </button>
